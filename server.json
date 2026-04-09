@@ -1,0 +1,26 @@
+{
+  "name": "com.marketcore/mcp-server",
+  "title": "MarketCore MCP Server",
+  "description": "Hosted MCP server for managing product context, blueprints, and AI-generated marketing content through MarketCore.",
+  "homepage": "https://marketcore.ai",
+  "repository": "https://github.com/ccromp/marketcore-mcp",
+  "documentation": "https://marketcore.ai/mcp",
+  "support": "https://github.com/ccromp/marketcore-mcp/issues",
+  "version": "TODO",
+  "transport": {
+    "type": "streamable-http",
+    "url": "TODO"
+  },
+  "authentication": {
+    "required": true,
+    "types": ["oauth2", "apiKey"],
+    "instructions": "See docs/authentication.md"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false
+  },
+  "maintainer": "MarketCore",
+  "status": "production"
+}
