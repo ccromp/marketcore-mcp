@@ -1,19 +1,81 @@
 # Errors & Troubleshooting
 
-<!-- TODO: MCP Engineer — populate with common error scenarios -->
-
 ## Authentication Errors
 
-<!-- TODO: 401/403 scenarios, token expiry, OAuth flow issues -->
+### 401 Unauthorized
+
+**Cause:** Missing or invalid authentication credentials.
+
+**Solutions:**
+- **OAuth:** Reconnect the MCP server in your client settings. Your token may have expired and failed to refresh.
+- **API key:** Verify your API key is correct and hasn't been revoked. Check [Integration Settings](https://app.marketcore.ai/integration-settings).
+- Ensure you're using the correct URL for your auth method:
+  - OAuth: `https://mcp.marketcore.ai`
+  - API key (SSE): `https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/sse`
+  - API key (Streaming): `https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/stream`
+
+### 403 Forbidden
+
+**Cause:** Your account doesn't have permission to perform the requested action.
+
+**Solutions:**
+- Check your team role — some actions may require owner or admin permissions
+- Verify you're on the correct active team
+- Private content/collections are only accessible by their creator
 
 ## Connection Errors
 
-<!-- TODO: Wrong URL, network issues, transport mismatch -->
+### Cannot connect to server
+
+**Solutions:**
+- Verify the server URL is correct (see above)
+- Check your internet connection
+- If using an API key, ensure the `Authorization` header format is `Bearer YOUR_API_KEY`
+- Confirm your MCP client supports the transport type you're using (SSE or Streamable HTTP)
+
+### Transport mismatch
+
+**Cause:** Using an SSE URL with a client that expects Streamable HTTP, or vice versa.
+
+**Solutions:**
+- OAuth URL (`https://mcp.marketcore.ai`) works with all compatible clients
+- For API key connections, try switching between the SSE and Streaming URLs
+- Check your client's documentation for which transport it supports
+
+## Tool-Specific Errors
+
+### Invalid UUID / ID not found
+
+**Cause:** Passing an incorrect or stale ID to a tool (e.g., `blueprint_uuid`, `content_id`, `project_id`).
+
+**Solutions:**
+- Use the corresponding list tool to get fresh IDs (e.g., `get_blueprints` before `get_blueprint`)
+- IDs are UUIDs — ensure you're passing the full string, not a truncated version
+
+### Content generation timeout
+
+**Cause:** Content generation (especially from blueprints) can take 1–3 minutes.
+
+**Solutions:**
+- This is normal behavior, not an error. Wait for the response to complete.
+- For blueprint-based generation, `create_content` returns a `generation_id` — use `get_generation_status` to poll for completion
+- Do not retry the call while a generation is in progress
+
+### Invalid category_id or dimension_option_ids
+
+**Cause:** Using an ID that doesn't exist for your team.
+
+**Solutions:**
+- Use `get_content_categories` to get valid category IDs
+- Use `get_targeting_dimensions` to get valid dimension option IDs
 
 ## Rate Limits
 
-<!-- TODO: Rate limit details if applicable -->
+The MarketCore MCP server applies reasonable rate limits to prevent abuse. Under normal usage, you are unlikely to hit these limits. If you receive a rate limit error (HTTP 429), wait a moment before retrying.
 
-## Common Issues
+## Getting Help
 
-<!-- TODO: Frequently encountered problems and solutions -->
+If you encounter an issue not covered here:
+
+- **GitHub Issues:** [github.com/ccromp/marketcore-mcp/issues](https://github.com/ccromp/marketcore-mcp/issues)
+- **Website:** [marketcore.ai](https://marketcore.ai)

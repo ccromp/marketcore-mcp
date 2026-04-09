@@ -16,7 +16,7 @@ This is the **public documentation repository** for MarketCore's hosted MCP serv
 
 ## What It Does
 
-<!-- TODO: MCP Engineer — populate from Strapi CMS overview -->
+MarketCore is a product context management platform for go-to-market teams. It stores your brand context, manages reusable content templates (blueprints), and generates marketing documents informed by your full product knowledge. The MCP server brings all of this into your AI assistant — create content, manage context, browse community templates, and organize projects without leaving your chat.
 
 MarketCore's MCP server enables AI clients to:
 
@@ -24,29 +24,69 @@ MarketCore's MCP server enables AI clients to:
 - Create and manage blueprints for content generation
 - Generate marketing content from context and blueprints
 - Organize work with projects and collections
-- Access community blueprints and templates
+- Browse and import community blueprints and templates
+- Share content externally and export to Word
 
 ## Connection
 
-<!-- TODO: MCP Engineer — populate OAuth URL and API token URL from Strapi CMS -->
-
-**Server URL:** `TODO`
+**Server URL (OAuth):** `https://mcp.marketcore.ai`
 
 **Authentication options:**
-- **OAuth 2.0** (recommended for interactive clients) — `TODO: OAuth URL`
-- **API Token** (for non-interactive environments) — `TODO: Token URL`
+- **OAuth 2.0** (recommended for interactive clients) — connect using `https://mcp.marketcore.ai`
+- **API Token** (for non-interactive environments) — generate a key at [Integration Settings](https://app.marketcore.ai/integration-settings) and use one of the API key URLs below
 
-Auth is required before any tool access.
+**API Key URLs:**
+
+| Transport | URL |
+|---|---|
+| SSE | `https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/sse` |
+| Streamable HTTP | `https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/stream` |
 
 ## Quickstart
 
-<!-- TODO: MCP Engineer — add copy-paste config examples for Claude Desktop, Cursor, VS Code -->
+Add to your MCP client config:
 
-See [docs/quickstart.md](docs/quickstart.md) for setup instructions.
+```json
+{
+  "mcpServers": {
+    "marketcore": {
+      "url": "https://mcp.marketcore.ai"
+    }
+  }
+}
+```
+
+See [docs/quickstart.md](docs/quickstart.md) for setup instructions for Claude, ChatGPT, Claude Desktop, Cursor, and VS Code.
 
 ## Available Tools
 
-<!-- TODO: MCP Engineer — populate full tool table from Strapi CMS mcp-tools collection -->
+| Category | Tool | Description |
+|---|---|---|
+| Account | `get_current_user_info` | Get profile, subscription, and usage info |
+| Context & Resources | `get_core_context` | Get team's core brand context |
+| Context & Resources | `get_context_collections` | List context collections |
+| Context & Resources | `create_context_collection` | Create a new context collection |
+| Context & Resources | `add_context` | Add a context item to your library |
+| Context & Resources | `get_relevant_context` | Search context library by prompt |
+| Reference | `get_content_categories` | List content categories |
+| Reference | `get_targeting_dimensions` | List targeting dimensions and options |
+| Blueprints | `get_blueprints` | List all blueprints |
+| Blueprints | `get_blueprint` | Get blueprint details by UUID |
+| Blueprints | `create_blueprint` | Create a reusable content template |
+| Blueprints | `create_blueprint_draft` | Create an AI-assisted blueprint draft |
+| Blueprints | `finalize_blueprint_draft` | Publish a blueprint draft |
+| Community Blueprints | `get_community_blueprints` | Browse community templates |
+| Community Blueprints | `get_community_blueprint_details` | Get community blueprint details |
+| Community Blueprints | `import_community_blueprint` | Import a community blueprint |
+| Content | `create_content` | Generate content (with or without blueprint) |
+| Content | `get_generation_status` | Check async generation status |
+| Content | `get_content_list` | List all content |
+| Content | `get_content` | Get full content by ID |
+| Sharing & Export | `create_external_share` | Create a public share link |
+| Sharing & Export | `convert_markdown_to_word_doc` | Export markdown as Word doc |
+| Projects | `get_projects` | List all projects |
+| Projects | `get_project` | Get project details |
+| Projects | `create_project` | Create a new project |
 
 See [docs/tools.md](docs/tools.md) for the complete tool reference.
 

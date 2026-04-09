@@ -6,14 +6,19 @@
   "repository": "https://github.com/ccromp/marketcore-mcp",
   "documentation": "https://marketcore.ai/mcp",
   "support": "https://github.com/ccromp/marketcore-mcp/issues",
-  "version": "TODO",
+  "version": "1.0.0",
   "transport": {
     "type": "streamable-http",
-    "url": "TODO"
+    "url": "https://mcp.marketcore.ai"
   },
   "authentication": {
     "required": true,
     "types": ["oauth2", "apiKey"],
+    "oauth_url": "https://mcp.marketcore.ai",
+    "api_key_urls": {
+      "sse": "https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/sse",
+      "stream": "https://api.marketcore.ai/x2/mcp/EbZaDl-X/mcp/stream"
+    },
     "instructions": "See docs/authentication.md"
   },
   "capabilities": {
