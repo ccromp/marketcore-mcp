@@ -594,7 +594,18 @@ Returns all projects visible to the current user. Projects organize content into
 
 **Parameters:** None
 
-**Output:** Array of projects with IDs, names, statuses, and metadata.
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (uuid) | Project ID. Pass to `get_project` or use when creating deliverables |
+| `name` | string | Project name |
+| `link_url` | string (uri) | Direct URL to view this project in the MarketCore app |
+| `visibility` | string | Visibility setting (e.g. team, private) |
+| `status` | string | Project status (e.g. active, archived) |
+| `deliverable_count` | integer | Number of deliverables in this project |
+| `created_by` | string | Name of the project creator |
+| `member_count` | integer | Number of project members |
 
 **Example prompts:**
 - "Show me my projects"

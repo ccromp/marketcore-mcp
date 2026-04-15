@@ -2,6 +2,12 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-04-14
+
+### Enhanced
+
+- `get_projects` — Added `link_url` field returning a direct URL to view each project in the MarketCore app. Expanded output documentation with full field table.
+
 ## 2026-04-09
 
 ### Initial Release
