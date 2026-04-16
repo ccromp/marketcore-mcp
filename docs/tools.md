@@ -61,7 +61,16 @@ Returns all context collections accessible to the current user. Collections orga
 
 **Parameters:** None
 
-**Output:** Array of context collections with their IDs, names, descriptions, and item counts.
+**Output:** Array of context collections, each with the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | integer | Collection ID. Pass to `add_context` or `get_relevant_context` |
+| `name` | string | Collection name |
+| `description` | string | Collection description |
+| `is_private` | boolean | Whether this collection is private to the creator |
+| `item_count` | integer | Number of context items in this collection |
+| `link_url` | string | Direct URL to view this collection in the MarketCore app |
 
 **Example prompts:**
 - "Show me my context collections"
@@ -90,6 +99,7 @@ Create a new context collection to organize your reference materials. Collection
 | `description` | string | Collection description |
 | `is_private` | boolean | Whether this collection is private to the creator |
 | `created_at` | integer | Unix timestamp of creation |
+| `link_url` | string | Direct URL to view this collection in the MarketCore app |
 
 **Example prompts:**
 - "Create a new collection called 'Q2 Product Research'"
@@ -121,6 +131,7 @@ Add a new context item to your reference library. Context items are reference ma
 | `collection_id` | integer | Collection this item belongs to (if assigned) |
 | `project_id` | string | Project association (if assigned) |
 | `created_at` | integer | Unix timestamp of creation |
+| `link_url` | string | Direct URL to view this context item in the MarketCore app. Resolves to the project, collection, or reference library view depending on the item's scope |
 
 **Example prompts:**
 - "Add our brand guidelines to MarketCore"

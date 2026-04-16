@@ -2,6 +2,14 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-04-16
+
+### Enhanced
+
+- `add_context` — Added `link_url` field returning a direct URL to view the new context item in the MarketCore app. The URL resolves to the project, collection, or reference library view depending on which scope the item was added to.
+- `create_context_collection` — Added `link_url` field returning a direct URL to open the new collection in the MarketCore app.
+- `get_context_collections` — Added `link_url` field on each returned collection. Documentation expanded to include the full output field table.
+
 ## 2026-04-14
 
 ### Enhanced
