@@ -2,6 +2,14 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-04-17
+
+### `create_content` — Direct content support
+
+- **New parameter:** `content` — supply your own text directly as a document, bypassing AI generation
+- **Changed:** `instructions` is now optional (was required). You must provide either `content` or `instructions`, but not both
+- **Fixed:** `content_id` now returns correctly in the synchronous response (was returning null)
+
 ## 2026-04-16
 
 ### Enhanced

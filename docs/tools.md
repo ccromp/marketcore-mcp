@@ -437,19 +437,28 @@ Import a blueprint from the MarketCore community exchange into your team's libra
 
 ### `create_content`
 
-Create content, optionally from a blueprint. Without `blueprint_uuid`: synchronous (1–3 min), returns content directly. With `blueprint_uuid`: async, returns `generation_id` to poll via `get_generation_status`.
+Create content by supplying your own text directly, generating from an AI prompt, or generating from a blueprint.
+
+You must provide either `content` or `instructions` (not both).
+
+- **With `content`** (synchronous): Saves your supplied text directly as a document — no AI generation. Returns immediately.
+- **With `instructions`** (synchronous): Creates a freeform document from an AI prompt. Takes 1–3 minutes.
+- **With `instructions` + `blueprint_uuid`** (asynchronous): Generates content from a blueprint template. Returns a `generation_id` to poll via `get_generation_status`. Takes 3–5 minutes.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `instructions` | string | Yes | Detailed instructions describing what to create |
-| `blueprint_uuid` | string | No | Blueprint UUID to generate from. Makes the call async |
+| `content` | string | No* | Your own text to save directly as a document. Cannot be used with `blueprint_uuid` |
+| `instructions` | string | No* | Detailed instructions describing what to create (AI will generate it) |
+| `blueprint_uuid` | string | No | Blueprint UUID to generate from. Makes the call async. Only works with `instructions` |
 | `project_id` | string | No | Project to associate this content with |
 | `category_id` | integer | No | Content category ID |
 | `collection_ids` | array | No | Context collection IDs to include |
 | `dimension_option_ids` | array | No | Targeting dimension option IDs |
-| `use_extended_thinking` | boolean | No | Enable extended thinking for complex content (sync mode only) |
+| `use_extended_thinking` | boolean | No | Enable extended thinking for complex content (sync mode only, with `instructions`) |
+
+\* You must provide either `content` or `instructions`, but not both.
 
 **Output (without blueprint — synchronous):**
 
@@ -457,7 +466,7 @@ Create content, optionally from a blueprint. Without `blueprint_uuid`: synchrono
 |---|---|---|
 | `id` | integer | Content record ID |
 | `title` | string | Document title |
-| `content` | string | Generated document content in markdown |
+| `content` | string | Document content in markdown |
 | `content_id` | string | Unique identifier for use with `get_content` and share tools |
 | `link_url` | string | Direct URL to view in MarketCore |
 | `created_at` | integer | Unix timestamp of creation |
@@ -469,13 +478,16 @@ Create content, optionally from a blueprint. Without `blueprint_uuid`: synchrono
 | `generation_id` | integer | ID to track async generation — pass to `get_generation_status` |
 
 **Example prompts:**
-- "Write a blog post about our new product launch"
-- "Generate a case study using my case study blueprint"
+- "Save this document to MarketCore" (with `content`)
+- "Write a blog post about our new product launch" (with `instructions`)
+- "Generate a case study using my case study blueprint" (with `instructions` + `blueprint_uuid`)
 - "Create content from my newsletter blueprint for the enterprise persona"
 
 **Common errors:**
+- Providing both `content` and `instructions` — use one or the other
+- Using `content` with `blueprint_uuid` — blueprints require `instructions`
 - Invalid `blueprint_uuid` — use `get_blueprints` to find valid UUIDs
-- Timeout on synchronous calls — these can take 1–3 minutes, which is normal
+- Timeout on synchronous calls — AI-generated content can take 1–3 minutes, which is normal
 
 ---
 
