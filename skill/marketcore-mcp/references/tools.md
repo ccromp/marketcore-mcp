@@ -368,7 +368,7 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 **Internal behavior worth knowing:**
 - Auth: requires editor or owner role on the team (calls `Check Team Role Authorization` with `allow_viewer: false` first).
 - The underlying PATCH endpoint auto-sets `project_item.private_override = true` when a private content is set as the brief, so other project members can see it.
-- The endpoint also accepts `system_prompt` and `default_collection_ids` — but `update_project` does NOT yet expose these (system_prompt's generation-pipeline application is being verified; default_collection_ids deferred).
+- The endpoint also accepts `system_prompt` (deprecated — superseded by the project brief; do NOT try to use it) and `default_collection_ids` (deferred — not yet exposed via `update_project`).
 
 ---
 

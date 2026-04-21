@@ -71,7 +71,7 @@ A **project** is a workstream — a focused container for related content + proj
 - **Context items** — Created with `add_context(project_id=...)`. Returned by `get_project` in the `context_items` array.
 - **Members** — `project_member` rows. Each member has a `role`: `owner`, `editor`, or `viewer`. (Plus a separate `Collaborator` role for stakeholders with project-only access.)
 - **Project brief** (optional) — A pinned canvas/deliverable that supplies high-level context. Stored as `project.project_brief_id` (an integer pointing to the `project_item.id` wrapper). Set via `create_project(project_brief_details)` or `update_project(project_id, project_brief_id=<content_uuid>)`.
-- **Project system prompt** (optional) — Stored on the project record (`system_prompt` field). The PATCH endpoint accepts updates, but the in-app UI for editing it may not be exposed yet, AND the generation pipeline's use of this field is currently being verified — `update_project` does NOT yet expose this parameter.
+- **Project system prompt** (deprecated) — Earlier data model had a `project.system_prompt` field. It's been superseded by the **project brief**. The brief plays this role now; don't set `system_prompt`. `update_project` intentionally does NOT expose it.
 
 ### Visibility model
 A project itself has visibility (`team` or `private`). Documents inside a project independently have their own visibility (`private`, `team`). They're orthogonal:

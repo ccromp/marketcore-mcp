@@ -110,16 +110,15 @@ State the limitation upfront before the user is surprised.
 
 ---
 
-## P10 — `project.system_prompt` field exists but pipeline application is being verified
+## P10 — `project.system_prompt` is deprecated — use the project brief instead
 
 **Symptom:** User asks you to "set the project's instructions" or "make the project always emphasize X".
 
-**Cause:** The Project record has a `system_prompt` field, the underlying PATCH endpoint accepts it, but whether the AI generation pipeline actually consumes it is currently being verified. The `update_project` MCP tool intentionally does NOT expose `system_prompt` until that's confirmed.
+**Cause:** The Project record has a legacy `system_prompt` field from an earlier data model. The **project brief** has taken over the role of persistent project-wide AI guidance. `system_prompt` is deprecated; `update_project` intentionally does NOT expose it.
 
 **What to do:**
-- Tell the user the field exists on projects but its in-app editing UI may not be present and the generation effect is being verified.
-- Suggest the alternative: include the persistent guidance directly in the `instructions` field of every `create_content` call (verbose but reliable).
-- If they ask why the MCP can't set it: cite this pitfall — pending verification.
+- Set a **project brief** instead: either at creation via `create_project(project_brief_details=...)` or on an existing project via `update_project(project_id, project_brief_id=<content_uuid>)`.
+- If the user's intent is "custom instructions that apply to every generation in this project," write that into the brief document itself. Every generation in the project pulls the brief in as part of Project Context (Layer 3 of the four-layer model).
 
 ---
 

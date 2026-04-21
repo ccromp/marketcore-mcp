@@ -61,7 +61,7 @@ MarketCore has a small number of first-class concepts. Internalize them before c
   - **Project context items**: supporting reference material (research, transcripts, competitor docs). Many per project. Listed under the project's **Context Items** tab.
   - When a user says "add context to my project," ask: "Should this become the project brief, or a project context item?" Default: project context item, unless the content is clearly the strategic anchor for the whole project.
 
-- **Project system prompt** — Persistent custom instructions applied to every generation in a project (e.g. "always emphasize HIPAA compliance", "position against Competitor X"). Stored on the project record (`system_prompt` field). The PATCH endpoint accepts updates to this field, but **the in-app UI for editing it may not be exposed yet** — confirm with the user before assuming they can see/manage it. The `update_project` MCP tool does NOT currently expose `system_prompt` as a parameter; it remains on the deferred list pending verification of the generation pipeline's use of the field.
+- **Project system prompt** — **Deprecated.** The `project.system_prompt` field existed in an earlier data model but has been superseded by the **project brief**. The brief serves the same purpose (persistent project-wide AI guidance) and is the supported way to give a project its own strategic anchor. Don't try to set `system_prompt`; set a brief via `update_project` or `create_project(project_brief_details=...)` instead.
 
 - **Project document `purpose`** — Documents in a project are tagged `core_output` (the main work product) or `supporting` (background material). The brief defaults to `supporting`. Most agents don't need to set this — surfaced only via `get_project`.
 
@@ -301,9 +301,9 @@ The response has both `blueprints` and `blueprint_drafts` arrays. When the user 
 
 If you pass `name=""` to `update_project`, it's silently treated as "not provided" (the MCP layer coerces empty optional text to null). Net effect: passing empty values is a no-op rather than clobbering the field. Useful as a safety net but means you can't intentionally clear the name.
 
-### 6.10 `project.system_prompt` exists but pipeline application is being verified
+### 6.10 `project.system_prompt` is deprecated — use the project brief instead
 
-The Project record has a `system_prompt` field, the PATCH endpoint accepts updates to it, but whether it's actually applied during AI content generation is currently being verified. Until confirmed, do NOT promise the user that setting it will affect their generated content. The `update_project` MCP tool does NOT expose this parameter yet (intentionally — pending the verification).
+The `project.system_prompt` field is a deprecated holdover from an earlier data model. The **project brief** has taken over its role. Don't try to set `system_prompt` — set a brief instead via `update_project(project_id, project_brief_id=...)` or seed at creation via `create_project(project_brief_details=...)`. The `update_project` MCP tool intentionally does NOT expose `system_prompt`.
 
 For deeper troubleshooting, see `references/pitfalls.md`.
 
@@ -328,7 +328,7 @@ Different parts of the MarketCore ecosystem use different names for the same con
 - Brand Foundation (a tab inside Context Hub) → "core context" / "brand voice" → `get_core_context`
 - Project Context (the project's "Context Items" tab) → "project-specific knowledge" → `add_context` with `project_id`
 - Project brief → "project brief" / "the brief" / "project starter doc" → `project_brief_details` on `create_project` OR `project_brief_id` on `update_project`
-- Project system prompt → "custom instructions" → on the project record (set in-app; MCP exposure pending verification — see §6.10)
+- Project system prompt → **deprecated** — use the project brief instead (see §6.10)
 - Document-specific context → "chips" / "attachments" → params on `create_content` (collections, dimensions)
 - Community blueprint → Blueprint Exchange template → `list_community_blueprints` / `import_community_blueprint`
 - Targeting dimension option → "audience targeting" / "personas / industries" → `dimension_option_ids` (option IDs from `list_targeting_dimensions`)
