@@ -1,166 +1,118 @@
-# Plan — "Set the brief on the 'Q4 Product Launch' project to that messaging document I just made"
+# Plan — Set the brief on the "Q4 Product Launch" project to the messaging document the user just made
 
-## Read of the request
+## Interpreting the request
 
-The user wants to set an **existing piece of content** ("that messaging document I just made") as the **project brief** on an **existing project** named "Q4 Product Launch". This is exactly Recipe 6 in `references/workflows.md`. The phrase "I just made" strongly implies the messaging doc already exists as a Content (canvas or deliverable) in their MarketCore account — but it does NOT tell me whether it's already attached to the Q4 Product Launch project. That's the precondition I have to verify, because `update_project(project_brief_id=...)` requires the content to already be a document in the project (skill §6.1).
+The user wants to pin a specific Content item (a messaging document they just created) as the strategic anchor (project brief) of an existing project named "Q4 Product Launch". This is a textbook **Workflow 2 — Set or change a project brief** from `SKILL.md`.
 
-I also have one ambiguity I should call out but not block on: "that messaging document I just made" doesn't give me a title. I can resolve this with `list_content` (sorted recent-first, or filter by recency) and propose a candidate to confirm, rather than asking up front and adding a turn. If `list_content` makes it obvious (e.g. one item titled "Q4 Launch Messaging" created an hour ago), I'll propose that and ask for one-word confirmation. If multiple plausible candidates exist, I'll list the top 2-3 and ask the user to pick.
+Two unknowns to resolve before I can call `marketcore:update_project`:
+1. The `project_id` for "Q4 Product Launch" (I have a name, not a UUID).
+2. The Content UUID for "that messaging document I just made" (the user is referring to it deictically — I don't have its UUID in awareness from earlier turns).
 
----
+I do NOT need to do any of the following (per the skill's pitfalls section), and I will explicitly avoid them:
+- I will NOT call `marketcore:get_content` on the messaging doc and re-create it via `marketcore:create_content(project_id=...)` to "put it in the project." That would create an orphaned duplicate with a fresh UUID. **Attachment is a relationship, not a copy.**
+- I will NOT call `marketcore:get_project` first to check whether the doc is already attached. `marketcore:update_project(project_brief_id=...)` handles BOTH cases automatically — if the content isn't already in the project's documents, the tool attaches it AND sets it as the brief in one call.
+- I will NOT use `marketcore:add_context` — that creates a Context item, which is a different object from a Content item used as a brief.
 
-## 1. First message back to user (verbatim)
-
-> Got it — I'll set your messaging doc as the project brief on **Q4 Product Launch**. Quick plan:
->
-> 1. Look up the **Q4 Product Launch** project to get its ID and see what's already in its documents.
-> 2. Find the messaging document you just made (I'll check your recent content and confirm the right one with you before doing anything).
-> 3. If the messaging doc is already a document inside the Q4 Product Launch project, I'll set it as the brief in one call (`update_project` with `project_brief_id`).
-> 4. If it's NOT in the project yet, I'll flag that — there are two paths and I'll let you pick before proceeding.
->
-> Starting with the lookup now.
+The question of "is the messaging doc already in the project or not?" is therefore **not a branch in my logic**. The tool transparently handles both states.
 
 ---
 
-## 2. Ordered tool calls
+## What I'd say back to the user (plan announcement, before any tool calls)
 
-### Step 1 — Confirm auth (cheap, once per session)
+> Got it — I'll pin your messaging doc as the brief on the "Q4 Product Launch" project. Quick disambiguation: I want to make sure I grab the right "messaging doc you just made" — I'll check your most recent content and confirm the title with you before I pin it. One sec.
 
-- **Tool:** `mcp__marketcore-dev__get_current_user_info`
-- **Params:** none
-- **Rationale:** Skill §1 says to call this once at the start of a session to confirm auth and active team. If this is the first turn of the session, do it; otherwise skip.
-- **Surface to user:** Nothing unless it fails (then point them at `references/connection.md`).
+After resolving the project + content IDs, before the actual `update_project` call:
 
-### Step 2 — Find the project
-
-- **Tool:** `mcp__marketcore-dev__list_projects`
-- **Params:** none (or pagination params if the team has many projects)
-- **Rationale:** I need the `project_id` (UUID) for "Q4 Product Launch". Skill §3.3 — discover before you act.
-- **Surface to user:** If exactly one project matches, just continue. If zero match, ask: *"I don't see a project called 'Q4 Product Launch' — do you want me to create it, or is it under a slightly different name?"* If multiple match (unlikely but possible — e.g. "Q4 Product Launch — Hardware" and "Q4 Product Launch — Software"), list them and ask which.
-
-### Step 3 — Inspect the project's current documents
-
-- **Tool:** `mcp__marketcore-dev__get_project`
-- **Params:** `project_id=<uuid from step 2>`
-- **Rationale:** Recipe 6 step 2 — I need to look at the `documents` array to see whether the messaging doc is already in the project. This also tells me whether a brief is already set (so I can mention I'll be replacing it if so).
-- **Surface to user:** Nothing yet — I'll combine the result with step 4 before saying anything.
-
-### Step 4 — Find the messaging document
-
-- **Tool:** `mcp__marketcore-dev__list_content`
-- **Params:** none initially (rely on default recency sort); paginate if needed
-- **Rationale:** "That messaging document I just made" implies recent. I want to identify a candidate before asking the user, so my clarifying question is concrete ("Is it 'Q4 Launch Messaging Framework'?") instead of open-ended ("which doc?"). Skill §3.2 — ask when ambiguous, but make the ask cheap.
-- **Inline clarifying question** (only if needed):
-  - **If one obvious recent candidate:** *"Looks like 'Q4 Launch Messaging Framework' (created 2 hours ago) is the one — confirm and I'll set it as the brief?"*
-  - **If multiple plausible candidates:** *"I see a couple recent docs that could be it — (a) 'Q4 Launch Messaging Framework' (2h ago), (b) 'Q4 Positioning v3' (yesterday). Which one?"*
-  - **If no plausible candidate:** *"I don't see a recent messaging-style doc in your library — can you give me the title, or did you draft it somewhere outside MarketCore?"*
-
-### Step 5 — Cross-reference: is the messaging doc already in the project?
-
-- **Tool:** none — this is a comparison between the `documents` array from step 3 and the content UUID from step 4.
-- **Rationale:** Recipe 6 step 2 — this comparison is the fork in the road.
-- **Two branches follow:**
-
-#### Branch A — Doc IS in the project's `documents` array
-
-##### Step 6A — State plan and set the brief
-
-- **What I tell user first** (verbatim):
-  > "'Q4 Launch Messaging Framework' is already in the project's documents. I'll set it as the brief now via `update_project` with `project_brief_id=<uuid>`. (This replaces the current brief — let me know if you want me to hold off.)"
-  >
-  > *(If no current brief is set, drop the parenthetical.)*
-- **Tool:** `mcp__marketcore-dev__update_project`
-- **Params:**
-  - `project_id=<project uuid>`
-  - `project_brief_id=<content uuid of messaging doc>`
-- **Rationale:** Recipe 6 step 3, skill §2.1 (Project brief) and §3.2 (the "Set the brief on..." pattern). PATCH semantics — only the brief field changes. The MCP tool resolves the content UUID to the right `project_item` wrapper internally.
-- **Pitfall guard:** If the API returns `"Content is not associated with this project"`, fall through to Branch B.
-
-##### Step 7A — Verify
-
-- **Tool:** `mcp__marketcore-dev__get_project`
-- **Params:** `project_id=<uuid>`
-- **Rationale:** Cheap confirmation that `project_brief_id` is now the new content's wrapper. Skill §3.3 (discover before you create — applied here as verify after you mutate).
-
-#### Branch B — Doc is NOT in the project's `documents` array
-
-##### Step 6B — Surface the gap and offer the two paths
-
-- **What I tell user** (verbatim):
-  > "I found 'Q4 Launch Messaging Framework' in your library, but it isn't currently a document inside the Q4 Product Launch project — and the brief has to live in the project before I can set it. Two ways forward:
-  >
-  > **(1) Easiest in MCP — create a fresh copy of the messaging doc inside the project**, then set that copy as the brief. Downside: you'll have two near-identical docs, and the standalone original won't auto-sync with the brief. I can do this end-to-end right now.
-  >
-  > **(2) Move the existing doc into the project first** (this isn't currently exposed via MCP — you'd do it in the app: open the project → '+ Add Document' → pick 'Q4 Launch Messaging Framework'). Once it's in the project, tell me and I'll set it as the brief in one call.
-  >
-  > Which do you prefer? If (1), do you want me to copy the doc as-is, or regenerate it with project context layered in?"
-
-##### Step 7B — Execute the user's choice
-
-- **If user picks (1) "copy as-is":**
-  - First fetch the source content body:
-    - **Tool:** `mcp__marketcore-dev__get_content`
-    - **Params:** `content_id=<existing messaging doc uuid>`
-    - **Rationale:** I need the markdown body to pass through.
-  - Then create a project-scoped copy:
-    - **Tool:** `mcp__marketcore-dev__create_content`
-    - **Params:**
-      - `project_id=<project uuid>`
-      - `name="Q4 Launch Messaging Framework"` (or whatever the source title was)
-      - `content=<markdown body from get_content>` — using the `content` path (not `instructions`), per skill §6.6, because we're saving pre-written text, not regenerating.
-    - **Rationale:** Skill §6.1 — `create_content(project_id=...)` is the in-MCP way to put new content directly into a project's documents. Sync path — no polling needed.
-- **If user picks (1) "regenerate with project context":**
-  - **Tool:** `mcp__marketcore-dev__create_content`
-  - **Params:**
-    - `project_id=<project uuid>`
-    - `name="Q4 Launch Messaging Framework"`
-    - `instructions="<paraphrase of original intent, e.g. 'A messaging framework for the Q4 Product Launch — pillars, proof points, audience targets. Use the project's context.'>"`
-  - **Rationale:** Skill §2.2 four-layer context model — project-scoped generation auto-pulls Brand Foundation + Reference Library + Project Context. Will likely improve on the standalone doc. Sync, 1-3 minutes — warn the user (skill §6.7).
-- **If user picks (2):** Stop. Tell them I'll wait — and to ping me once they've added the doc in the app.
-
-##### Step 8B — Set the brief (only after step 7B succeeds)
-
-- **Tool:** `mcp__marketcore-dev__update_project`
-- **Params:** `project_id=<uuid>`, `project_brief_id=<new content uuid from step 7B>`
-- **Rationale:** Same as Branch A step 6A.
-
-##### Step 9B — Verify
-
-- Same as Branch A step 7A: `get_project` to confirm.
+> I'll set the brief on "Q4 Product Launch" to "[messaging doc title]". One call to `update_project` does this — and if the doc isn't already attached to the project, the same call attaches it. No duplicate is created; the original messaging doc keeps its UUID and Reference Library / wherever-it-lives placement.
 
 ---
 
-## 3. What I surface back to the user at each meaningful step
+## Exact MCP tool call sequence
 
-| Step | What I say |
-|---|---|
-| Before step 1 | The opening message above (plan + "starting now"). |
-| After steps 2-4 | Either (a) "Found 'Q4 Product Launch' and your messaging doc 'X'" + the next-step plan, or (b) the disambiguation question (project not found / multiple docs / etc.). I do NOT narrate every individual `list_*` call — I batch the lookups and report the outcome once. |
-| After step 5 (the comparison) | One sentence: either "It's already in the project — going to set it as the brief now" (Branch A step 6A) or the Branch B gap surfacing message. |
-| After the `update_project` call | "Done. 'Q4 Launch Messaging Framework' is now the brief on Q4 Product Launch. [link to the project]." Pulled from the `link_url` on the project response. |
-| After verify | Skip if the update response already includes the new brief reference; otherwise a short "confirmed". |
+### Step 1 — Resolve the project UUID
 
-I keep narration light between turns — the skill says to state the plan **before** non-trivial mutating calls (§3.1), not to live-narrate every read.
+**Call:** `marketcore:list_projects`
+
+**Parameters:** none.
+
+**Why:** I have the project name ("Q4 Product Launch") but not its UUID. `update_project` requires the UUID. Per Workflow 2 step 1.
+
+**Expected handling:**
+- Match the project whose name is exactly (or unambiguously close to) "Q4 Product Launch" and grab its UUID.
+- If multiple projects match, surface them and ask the user to pick.
+- If none match, surface that and ask whether they meant a different name or want to create the project first (Workflow 4). Do NOT auto-create.
+
+### Step 2 — Resolve the messaging document's Content UUID
+
+**Call:** `marketcore:list_content`
+
+**Parameters:** none (rely on default ordering / recency in the response).
+
+**Why:** The user said "that messaging document I just made." I don't have the UUID in awareness. Per Workflow 2 step 2, I need to find the most recent matching Content item and confirm with the user.
+
+**Disambiguation strategy:**
+- Look at the most recently created Content items in the response.
+- Surface candidates whose title contains "messaging" / "positioning" / similar product-marketing terms.
+- If exactly one obvious recent match exists, name it and ask the user to confirm: "Looks like you mean '[title]', created [time ago] — confirm and I'll proceed?"
+- If multiple plausible candidates exist, list the top 2-3 by recency and ask the user to pick one.
+- If nothing obvious matches, ask the user for the title or for the doc's MarketCore link.
+
+I will NOT silently guess — the skill is explicit about confirming when ambiguous. I will NOT call `marketcore:get_content` to read each candidate's body to "figure out which is the messaging doc"; the title + recency is enough for disambiguation, and `get_content` is reserved for cases where I need the body itself.
+
+### Step 3 — Set the brief (the one mutation)
+
+**Call:** `marketcore:update_project`
+
+**Parameters:**
+- `project_id`: `<UUID from step 1>`
+- `project_brief_id`: `<Content UUID from step 2>`
+
+**Why:** This is the one and only mutation. Per Workflow 2 step 4 and the choosing-between-tools table:
+> "To pin a Content item as a project's strategic anchor → `marketcore:update_project(project_brief_id=...)`"
+
+And per the skill's explicit guidance on the tool's auto-attach behavior:
+> "**The tool handles BOTH cases automatically:** if the content is already in the project's documents → uses the existing wrapper; if not → attaches it AND sets it as the brief in one call."
+
+So this single call covers both possible states. PATCH semantics: only `project_id` and `project_brief_id` are passed; `name`, `visibility`, `status` are untouched.
 
 ---
 
-## 4. Final action when the brief is set
+## Handling the case where the messaging doc may or may not already be in the project
 
-- Confirm the change in one line, including the project's `link_url` so the user can click straight into the app and see the brief in place.
-- Offer one logical next step (don't stack three): *"Want me to draft something off this brief now — e.g. the launch announcement, sales one-pager, or in-app message? Or are we good?"*
-- Do **not** delete or modify the standalone source doc (Branch B path 1) without being asked. Two copies is the user's call.
+This is the heart of the question, and the skill's answer is unambiguous: **don't branch on it; let `update_project` handle both states in one call.**
+
+- **If the messaging doc is already attached to "Q4 Product Launch":** `update_project` finds the existing `project_item` wrapper and pins the brief by setting `project.project_brief_id`.
+- **If the messaging doc lives in the Reference Library, in another project, or unattached:** `update_project` attaches it to "Q4 Product Launch" AND sets it as the brief in the same call. The original Content item is not duplicated — its UUID is preserved; only a new `project_item` relationship row is added.
+
+I will NOT call `get_project` to inspect the project's documents first. Per the pitfall:
+> "Don't call `get_project` first to check if the doc is in the project. `update_project` handles both states."
+
+I will also NOT re-create the messaging doc via `create_content(project_id=...)` to "put it in the project." Per the founding-misfire pitfall:
+> "Don't fetch the content with `get_content` and re-create it via `create_content(project_id=...)` to 'put it in the project.' That creates a duplicate with a fresh UUID, orphaned from the original. Attachment is a relationship, not a copy. `update_project` handles it."
+
+If the messaging doc happens to be marked private and `update_project` attaches it as the brief, the underlying PATCH endpoint will auto-set `project_item.private_override = true` so other project members can read it (per pitfall E7). I don't manage that flag manually.
 
 ---
 
-## 5. What I do if the messaging document is not yet in the project's documents
+## Error handling I'm prepared for
 
-This is the known precondition. My handling is **Branch B above** (steps 6B → 7B → 8B → 9B), summarized:
+- **`"Document not found"`** on the `update_project` call → likely a wrong UUID for `project_brief_id`. Most common cause is mistakenly using a `project_id` where a content UUID was expected, or a `project_item.id` integer instead of a UUID (per pitfall E1). I'll surface the raw error verbatim, restate which UUID I used for `project_brief_id`, and ask the user to verify by sharing the doc's link.
+- **`"Project not found in your current team."`** → "Q4 Product Launch" belongs to a different team the user is also a member of but isn't currently active in. I'll tell the user to switch active teams in the MarketCore app. I will not try to recover by switching teams programmatically.
+- **Auth / `unauthorized`** → I'll tell the user to reconnect MarketCore in their MCP client integration settings. No silent retry.
+- **Anything else** → Surface the raw error verbatim, name the tool I called and the parameters, suggest plausible next steps, and ask the user before retrying. Per pitfalls.md: don't assume a workaround that creates the wrong artifact in the wrong place — confirm first.
 
-1. **Detect it via `get_project`** — the messaging doc's UUID is not in the `documents` array.
-2. **Stop and surface to the user** — don't silently work around it. Skill §6.1 is explicit that this is the gating constraint, and the user needs to know there's a fork.
-3. **Offer the two viable paths:**
-   - **Path 1 (in-MCP):** `create_content(project_id=...)` to put a copy of the messaging doc into the project (either by passing the original markdown via `content`, or by regenerating via `instructions` with project context layered in). Then `update_project` to set it as the brief.
-   - **Path 2 (in-app):** User adds the existing standalone doc to the project's documents via the MarketCore app ("+ Add Document"), then I run `update_project`. There's no MCP tool to attach an existing standalone content to a project — skill §6.1 is explicit.
-4. **Wait for the user's choice** before mutating anything. Do not pre-emptively create a duplicate document — that's a "wrong place, wrong thing" failure mode (skill §3.2 is built around avoiding exactly this).
-5. **Execute the chosen path**, then `update_project`, then verify with `get_project`.
+---
 
-The trap I'm avoiding: blindly creating a project-scoped copy without asking would leave the user with two messaging docs in different places, the standalone doc orphaned, and no way to tell which is canonical. That's worse than the extra turn.
+## What I'd surface to the user at the end (success path)
+
+Per Workflow 2's "Output to user":
+> "Brief set: [project link]."
+
+Concretely, after `update_project` returns `success: true` with the updated project record, I'd say something like:
+
+> Done — "[messaging doc title]" is now the brief on "Q4 Product Launch": [project link]. The doc itself is unchanged; it's just been pinned as the project's strategic anchor (and attached to the project, if it wasn't already). Every future generation inside this project will automatically draw on it as Project Context. Want me to add supporting research / competitor materials to the project, or generate something against the new brief?
+
+Surface conventions I'll follow:
+- Use the project's human-readable name and `link_url` — never raw UUIDs (pitfall E10).
+- Don't expose internal field names like `deliverable_id`, `project_item.id`, or the API-level "deliverables" terminology (pitfall E9). Call them "content" / "brief" / "project."
+- Don't call `get_content` to fetch and display the brief's body — the user can open the link if they want to read it. The `get_content` tool is reserved for the two narrow cases the skill calls out (answering a content question that requires the body, or feeding markdown into `convert_markdown_to_word_doc`).

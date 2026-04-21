@@ -1,202 +1,191 @@
-# Plan: "Write a case study about Acme Corp deployment, targeting healthcare CIOs"
+# Plan — Case study about Acme Corp deployment, targeting healthcare CIOs
 
-## Reading the request
+## 1. Reading the request
 
-The user wants:
-- A **case study** (a recognized content type — almost certainly a fit for a blueprint)
-- Subject: **recent deployment with Acme Corp** (a real customer engagement — needs source material)
-- Audience: **healthcare CIOs** (a targeting decision — likely maps to a Persona + Industry dimension option pair)
+The user said: *"I want to write a case study about our recent deployment with Acme Corp. Targeting healthcare CIOs. Can you do that for me?"*
 
-Three things I need before generating anything:
-1. **A blueprint** — case studies are highly structured, so I should prefer a blueprint over freeform. Check if one already exists; if not, propose using a community one or creating one.
-2. **A project home** — "recent deployment with Acme Corp" sounds like an initiative that may already have a project (e.g., "Acme Launch" or "Customer Stories Q2"). Check `list_projects`.
-3. **Source material on Acme** — case studies live or die on the customer-specific facts (problem, solution, metrics, quotes). Brand Foundation + Reference Library won't include this; I need to ask Chris where the Acme deployment details live or have him add them as project context / document-specific context.
-4. **Targeting option IDs** — "healthcare CIOs" needs to map to actual `dimension_option_ids` from `list_targeting_dimensions`.
+This is **Workflow 1 — Generate content** with three concrete signals I can act on:
 
-I will NOT just call `create_content` and hope. The skill explicitly says "discover before you create" (§3.3) and "state your plan before you act" (§3.1).
+- **Content type:** "case study" — a canonical content type that very likely has a corresponding blueprint in the user's library. Blueprint-driven generation is async (3–5 min, returns `generation_id` to poll).
+- **Subject:** "recent deployment with Acme Corp" — a *specific named customer engagement*. This is exactly the narrow exception in Workflow 1 where one targeted `marketcore:get_relevant_context` sourcing-check up front is reasonable, so I can ask "do you have Acme deployment notes loaded, or should we add some first?" Acme-specific facts are unlikely to be in the standard Reference Library.
+- **Audience:** "healthcare CIOs" — maps to targeting dimension *options* (likely Persona = CIO and/or Industry = Healthcare). Skill is explicit: pass *option* IDs, not dimension IDs.
 
----
+What the user did NOT specify:
+- Whether this should live in a project (an Acme account project, a customer-marketing project, a launch).
+- Which case-study blueprint (if multiple exist) or whether they want freeform.
+- Whether they have Acme source material loaded.
 
-## 1. First message back to the user (verbatim)
-
-> Happy to help with the Acme Corp case study for healthcare CIOs. Before I generate anything, a few quick checks so it lands right:
->
-> 1. **Project**: Should this live in an existing project (e.g. an "Acme Launch" or "Customer Stories" project) or do you want me to create a new one? I'll check what exists.
-> 2. **Blueprint**: I'll look for an existing case study blueprint in your library. If you don't have one, I can either import one from the Blueprint Exchange or create one — your call.
-> 3. **Source material on Acme**: Case studies need the specifics — what problem they had, what you deployed, results/metrics, any quotes. Do you have a deployment recap, win-wire, call transcript, or notes I should pull from? If it's already in your Reference Library or a project, I'll find it. If not, the best move is to paste/upload it before I generate.
-> 4. **"Healthcare CIO" targeting**: I'll check your Targeting Dimensions for the matching Persona and Industry options so the content speaks to that audience specifically.
->
-> Let me run the discovery calls now and come back with what I find — should take a few seconds.
-
-(I do **not** wait for the user before doing read-only discovery — those calls are safe and give me concrete options to bring back. I do wait for the user before any create/generate call.)
+I'll ask the small disambiguations in my opening message and run the safe pure-read discovery calls in parallel while waiting for their answer.
 
 ---
 
-## 2. Ordered tool calls
+## 2. What I'd say back to the user (opening message)
 
-### Phase A — Confirm session and discover existing assets (read-only, run in parallel)
-
-**A1. `mcp__marketcore-dev__get_current_user_info`**
-- Params: none
-- Rationale: Confirm auth, see the active team, surface plan/usage so I know if there are quota concerns before kicking off an async generation. Skill §1 mandates this once per session.
-
-**A2. `mcp__marketcore-dev__list_projects`**
-- Params: none (default listing)
-- Rationale: Look for an Acme-related project ("Acme", "Acme Launch", "Customer Stories", etc.). Avoids creating a duplicate (skill §3.3).
-
-**A3. `mcp__marketcore-dev__list_blueprints`**
-- Params: none
-- Rationale: Find an existing case study blueprint. Check both `blueprints` AND `blueprint_drafts` arrays per pitfall §6.5.
-
-**A4. `mcp__marketcore-dev__list_targeting_dimensions`**
-- Params: none
-- Rationale: Find the option IDs for "Persona = Healthcare CIO" (or closest match — could be "CIO/IT Decision Maker" + "Industry = Healthcare"). Per pitfall §6.8, I need the *option* IDs, not dimension IDs.
-
-**A5. `mcp__marketcore-dev__list_content_categories`**
-- Params: none
-- Rationale: Find the `category_id` for case studies / customer stories (likely "Customer Marketing", "Sales Enablement", or similar). Optional on `create_content` but improves organization.
-
-**A6. `mcp__marketcore-dev__get_relevant_context`**
-- Params: `prompt: "Acme Corp deployment case study — implementation details, problem, solution, results, metrics, customer quotes"`
-- Rationale: Check whether Chris already has Acme material in his Reference Library or any project. If he does, I can scope the generation against it. If not, I know I need to ask him to add it.
-
-### Phase B — Report findings and confirm decisions with user
-
-I'd report back with something like:
-
-> Here's what I found:
-> - **Project**: [Found "Acme Launch" project / No Acme project exists]
-> - **Blueprint**: [Found "Customer Success Story" blueprint — let's use it / No case study blueprint exists. Recommend either the "B2B SaaS Case Study" template from the Blueprint Exchange or I can create one from a sample you provide]
-> - **Targeting**: I'll target Persona = "[matched option]" and Industry = "Healthcare" — does that match what you want?
-> - **Acme source material**: [Found N relevant context items — listing them / Found nothing on Acme. Before I generate, can you paste a deployment recap, share a doc, or point me at a call transcript? Without specifics the case study will be generic.]
+> Happy to draft that. Before I kick off generation, a couple quick checks:
 >
-> My proposed plan:
-> - Project: [name] (existing / new)
-> - Blueprint: [name]
-> - Targeting: [persona + industry option labels]
-> - Source material: [list what I'll attach]
+> 1. I'll look for an existing case-study blueprint in your library and a Healthcare-CIO targeting option (or the closest equivalent — likely Persona = CIO + Industry = Healthcare). I'll use whatever exists.
+> 2. Should this case study live in a project (an Acme account, a customer-marketing project, a launch) or stand on its own?
+> 3. Do you have source material on the Acme deployment already loaded in MarketCore — call notes, deployment recap, customer quotes? I'll do a quick check, but if it's not there yet, adding some context first will produce a much sharper draft (Acme-specific facts probably aren't in your standard Reference Library).
 >
-> Reply "go" and I'll kick off generation. (Async, ~3–5 minutes — I'll poll and come back when it's ready.)
+> Once you confirm, I'll generate via the case-study blueprint targeted at Healthcare CIOs. Blueprint generation is async (typically 3–5 minutes) — I'll poll and surface the link as soon as it's ready.
 
-### Phase C — Branching depending on user response
-
-**Branch C1 — Source material exists in MarketCore already:**
-Skip ahead to D.
-
-**Branch C2 — Chris pastes/uploads Acme material:**
-
-**C2a. `mcp__marketcore-dev__add_context`**
-- Params:
-  - `content_type: "manual"` (or `"file"` / `"call_transcript"` depending on what he sends)
-  - `title: "Acme Corp Deployment — Source Material"`
-  - `content: <pasted text>`
-  - `project_id: <acme_project_id>` if scoping to a project, else omit for top-level Reference Library
-- Rationale: Persist it once so it's reusable, and so the case study generation can reference it via project context (layer 3) or Reference Library RAG (layer 2).
-- I'd disambiguate per skill §3.2: ask if this should be a project context item (recommended — it's specific to this initiative), Reference Library item (if Acme is a recurring story), or just one-off (skip storage). Default ask: project context item.
-
-**Branch C3 — No case study blueprint exists, Chris approves importing one:**
-
-**C3a. `mcp__marketcore-dev__list_community_blueprints`**
-- Params: filter for case study / customer story templates
-- Rationale: Per skill §4.3, check the Blueprint Exchange before creating from scratch.
-
-**C3b. `mcp__marketcore-dev__get_community_blueprint_details`**
-- Params: `community_blueprint_uuid: <chosen_uuid>`
-- Rationale: Show Chris the structure + style guide before importing so he can confirm the fit.
-
-**C3c. `mcp__marketcore-dev__import_community_blueprint`**
-- Params: `community_blueprint_uuid: <chosen_uuid>`
-- Rationale: Clones it into Chris's library so we can use it.
-
-**Branch C4 — No Acme project exists, Chris wants a new one:**
-
-**C4. `mcp__marketcore-dev__create_project`**
-- Params:
-  - `name: "Acme Corp Case Study"` (or whatever Chris confirms)
-  - `visibility: "team"` (default; ask if he'd prefer private)
-  - Probably **skip** `project_brief_details` for this — the case study itself is the deliverable, not a brief-worthy initiative. Keep it lean.
-- Rationale: Per skill §4.4. State to user before calling.
-
-### Phase D — Generate the case study
-
-**D1. `mcp__marketcore-dev__create_content`**
-- Params:
-  - `blueprint_uuid: <case_study_blueprint_uuid>`
-  - `project_id: <acme_project_id>` (if there's a project home)
-  - `instructions: "Case study about MarketCore's deployment with Acme Corp. Audience: healthcare CIOs. Lead with the IT/operational problem Acme had, the deployment approach, measurable results (cite specific metrics from the source material), and a CIO-relevant takeaway. Use the Acme deployment source material attached as the factual backbone — do not invent metrics or quotes."`
-  - `dimension_option_ids: [<healthcare_industry_option_id>, <cio_persona_option_id>]`
-  - `category_id: <case_study_category_id>` (if found)
-  - `collection_ids: [<acme_or_customer_stories_collection_id>]` if a relevant collection exists
-- Rationale: Blueprint-driven async generation. Returns a `generation_id`. Per pitfall §6.6, I do NOT pass `content` (that's for pre-written text). Per pitfall §6.8, I'm passing option IDs not dimension IDs.
-- **State plan to user immediately before calling**, per §3.1.
-
-**Surface to user before calling:**
-
-> Calling `create_content` now with the "Customer Success Story" blueprint, scoped to the Acme Corp Case Study project, targeting Healthcare + CIO. This is async — typically 3–5 minutes. I'll poll and ping you when it's done.
-
-### Phase E — Poll for completion
-
-**E1. `mcp__marketcore-dev__get_generation_status`**
-- Params: `generation_id: <returned_from_D1>`
-- Rationale: Per skill §3.5 and pitfall §6.4 — async generation is silent unless polled. Poll every ~30–60s. Surface progress to the user roughly every minute ("still generating, currently `processing`").
-
-Loop until `status: completed` (or surface a clear error if it fails — `failed` / `error_*`).
-
-### Phase F — Fetch and present the result
-
-**F1. `mcp__marketcore-dev__get_content`**
-- Params: `content_id: <returned_when_status_completed>`
-- Rationale: Pull the full markdown/text body so I can show it to Chris.
-
-**Surface to user:**
-
-> Done. Here's the draft case study:
->
-> [paste the rendered case study content — or summary + first 200 words if it's long, with offer to paste in full]
->
-> A few next-step options:
-> - **Refine** — tell me what to tweak (tone, length, missing angle) and I'll regenerate or do a freeform edit pass.
-> - **Share** — I can create a public share link (`create_external_share`).
-> - **Export** — I can convert it to a `.docx` (`convert_markdown_to_word_doc`).
-> - **Save as project context** — if you'd like the final draft pinned as a reference for future Acme content.
+I'd send that and proceed in parallel with the read-only discovery calls (they don't need user confirmation).
 
 ---
 
-## 3. What I would surface back at each meaningful step
+## 3. Tool call sequence
 
-| Step | What I tell the user |
-|---|---|
-| Before any tool call | "Running discovery — checking your projects, blueprints, targeting dimensions, and existing Acme context. Back in a few seconds." |
-| After Phase A | Concrete summary: project found/not found, blueprint found/not found, targeting options matched, existing Acme context items (with names). Frame as a proposed plan, ask for "go" or corrections. |
-| If no Acme source material exists | Explicitly flag this as the highest-risk gap: "Without specifics the case study will be generic / hallucinatory. Can you paste a deployment summary, share a doc URL, or point me at a call recording?" |
-| Before importing a community blueprint | Show name + author + brief description, ask "import this one?" |
-| Before creating a new project | "I'll create a project called 'Acme Corp Case Study', team-visible, no brief seeded. Want a different name or private visibility?" |
-| Before `create_content` | Full plan restatement (blueprint, project, targeting, source material attached). "Kicking off — async, 3–5 minutes." |
-| During polling | At ~1 min: "Still generating, status `processing`." At ~3 min if not done: "Still going, this is normal — the longer end of the 3–5 min window." |
-| On completion | Paste the draft + offer the four next-step options. |
-| On failure | Surface the error verbatim, propose a remediation (retry, switch blueprint, add more source material, fall back to freeform). |
+### Phase A — Discovery (run in parallel, before any generation)
+
+1. **`marketcore:list_blueprints`**
+   - **Why:** Find the case-study blueprint. Skill explicitly says check both the `blueprints` and `blueprint_drafts` arrays — the user may have a draft they're iterating on.
+   - **Params:** none.
+   - **Decision rule:**
+     - One match → propose it.
+     - Multiple matches (e.g. "Customer Case Study", "Technical Case Study", "Healthcare Case Study") → ask user to pick.
+     - No match → fall back to freeform `create_content` (sync, 1–3 min) and offer Recipe A (create a reusable case-study blueprint) afterward, or check Blueprint Exchange via `list_community_blueprints`.
+
+2. **`marketcore:list_targeting_dimensions`**
+   - **Why:** Resolve "healthcare CIOs" to dimension *option* IDs. I expect a Persona dimension with a CIO option and an Industry dimension with a Healthcare option (the actual structure may differ — could be one combined dimension).
+   - **Params:** none.
+   - **Decision rule:** Drill into the `options` array on each dimension and grab the option UUIDs that match. If only one of the two attributes has a matching option, use what's available and fold the rest into the `instructions` text as audience framing.
+
+3. **`marketcore:list_projects`**
+   - **Why:** See whether there's an obvious Acme-related or customer-marketing project home before proposing one. Don't assume — surface candidates.
+   - **Params:** none.
+
+(I will NOT call `marketcore:get_current_user_info` to "verify auth" — auth is implicitly confirmed by any successful tool call.)
+
+### Phase B — Sourcing check (the narrow Workflow-1 exception)
+
+4. **`marketcore:get_relevant_context`**
+   - **Why:** "Acme Corp" is a specific named customer — exactly the narrow case the skill carves out. Single targeted call so I can ask the user about source material if it's missing. **This is NOT a pre-load for `create_content`** (which pulls relevant context internally) — it's a one-off check to drive the disambiguation question.
+   - **Params:**
+     - `prompt`: `"Acme Corp deployment, customer outcomes, results, healthcare implementation"`
+     - No `project_id` / `collection_ids` — I want a broad sweep across the whole library at this stage.
+   - **Decision rule:**
+     - Hits referencing Acme → tell the user "I see source material on the Acme deployment — I'll let the model draw on it."
+     - No Acme-specific hits → tell the user "I don't see source material on the Acme deployment yet — want to paste in deployment notes / win-wire / interview transcript before I generate? It'll be much sharper." Branch to Phase C if yes; otherwise generate with a flagged caveat in the prompt that deployment specifics may need editing.
+
+### Phase C — (Conditional) Add Acme source material as context
+
+*Only run if the user provides notes after the Phase B prompt.*
+
+5. **`marketcore:add_context`** (Workflow 3)
+   - **Why:** Persist the Acme deployment notes so this generation (and future Acme work) can draw on them.
+   - **Scope decision:**
+     - Inside a project → `project_id` (project-scoped, always pulled in for project generations — Layer 3, included verbatim, no relevancy filtering per pitfall E4).
+     - Standalone → top-level Reference Library (no `project_id`) so it's reusable and relevancy-filtered.
+   - **Params:**
+     - `name`: e.g. `"Acme Corp deployment notes"`
+     - `content`: the user-pasted text.
+     - `project_id`: only if scoped.
+
+### Phase D — State the plan, then generate
+
+6. **State plan in one sentence to the user** (Workflow 1 step 4):
+   > "Generating a case study using the **[Blueprint Name]** blueprint, [scoped to project X | standalone], targeted at Persona = CIO + Industry = Healthcare. Blueprint generation is async (3–5 min) — I'll poll and ping you when it's ready."
+   >
+   > (If no blueprint exists: "Generating a case study freeform — sync, 1–3 min.")
+
+7. **`marketcore:create_content`**
+   - **Why:** The actual generation. Per the skill: do NOT pre-fetch with `get_relevant_context` to pass in. `create_content` already pulls Brand Foundation (Layer 1) + Reference Library via relevancy (Layer 2) + Project Context if scoped (Layer 3) + any explicit `collection_ids` (Layer 4) internally.
+   - **Params:**
+     - `instructions`: A focused prompt — something like *"Case study on our recent deployment with Acme Corp, framed for healthcare CIOs evaluating similar implementations. Lead with the business outcome and CIO-level decision criteria — security/compliance posture, integration risk, time-to-value, measurable results. Structure: customer snapshot → challenge → solution → results → quote → next steps. Keep technical depth at the level a healthcare CIO needs, not implementation detail."* (Skill reminder: don't restate brand voice — Layer 1 has it. Don't restate project strategy — Layer 3 has it if scoped.)
+     - `blueprint_uuid`: from `list_blueprints` (if found).
+     - `project_id`: if scoped.
+     - `dimension_option_ids`: `[<CIO option UUID>, <Healthcare option UUID>]` — *option* IDs from the `options` array, not dimension IDs.
+     - `category_id`: optional; skip unless an obvious "Case Study" / "Customer Marketing" category jumps out (organizational only — doesn't affect generation per pitfall E5).
+   - **Validation before calling:** `content` is NOT being passed (mutually exclusive with `instructions` + `blueprint_uuid`). `instructions` + `blueprint_uuid` is the legal blueprint-driven combo.
+   - **Returns:** `{ generation_id }` — no content yet (async).
+
+### Phase E — Async polling
+
+8. **`marketcore:get_generation_status`** — poll loop
+   - **Why:** Blueprint generation is silent unless polled. Without polling, the user thinks nothing happened.
+   - **Params:** `generation_id` from step 7.
+   - **Cadence:** poll every ~30 seconds; surface progress to the user every ~minute (not every poll — would be noisy).
+   - **Status enum:** `pending` → `gathering context` → `processing` → `completed` (or `failed`).
+   - **User-facing updates:** "Still generating — currently `processing`. Should be done in another minute or two."
+   - **Stop conditions:**
+     - `completed` → response contains `content.link_url`. Proceed to Phase F.
+     - `failed` → surface the error to the user verbatim, offer to retry (same params) or adjust (different blueprint, different instructions).
+
+### Phase F — Hand off
+
+9. **Surface to user:**
+   > "Your case study is ready: **[Title]** — [link_url].
+   >
+   > Open it in MarketCore to review. From here I can:
+   > - Generate a public share link for sending externally
+   > - Export it as a Word doc
+   > - Refine specific sections — just tell me what you want to change
+   > - Pin it as the brief on a project
+   >
+   > Want any of those?"
+
+   I will NOT call `marketcore:get_content` to fetch and quote the body. The user reads it in MarketCore via `link_url`. (The only legitimate post-gen `get_content` uses are: user later asks a body-dependent question, or feeding `marketcore:convert_markdown_to_word_doc` for Word export.)
 
 ---
 
-## 4. Final action when content is created
+## 4. Why each call (one-liner recap)
 
-After `get_content` returns the completed case study:
-
-1. **Paste the full draft into the chat** (or a structured summary + first section if it's very long, with an offer to show the rest).
-2. **Confirm where it lives**: project name, content ID, link URL (from the `link_url` field in the response).
-3. **Offer the four follow-ups** above (refine / share / export / save as context).
-4. **Do NOT auto-share or auto-export** — those create artifacts Chris hasn't asked for. Wait for his nod.
-5. **If Chris asks for revisions**: prefer regenerating with updated `instructions` (or a tighter `dimension_option_ids` set) over freeform editing — the blueprint structure is the value. For small wording tweaks, do a freeform `create_content` with `instructions` describing the edits, scoped to the same project so context is preserved.
+| # | Tool | One-line reason |
+|---|---|---|
+| 1 | `marketcore:list_blueprints` | Find the case-study blueprint (check both `blueprints` and `blueprint_drafts`). |
+| 2 | `marketcore:list_targeting_dimensions` | Get the *option* ID(s) for healthcare CIO targeting. |
+| 3 | `marketcore:list_projects` | See whether Acme has an obvious project home before proposing one. |
+| 4 | `marketcore:get_relevant_context` | Narrow Workflow-1 sourcing-check — "Acme Corp" is a specific customer name unlikely to be in standard Reference Library. One call only. |
+| 5 | `marketcore:add_context` *(conditional)* | Persist Acme deployment notes if user provides them. |
+| 6 | `marketcore:create_content` | The actual generation — blueprint-driven, async. |
+| 7 | `marketcore:get_generation_status` | Poll until `completed` because blueprint mode is async. |
 
 ---
 
-## Pitfall checklist I'm explicitly avoiding
+## 5. Async waiting — how I'll handle it
 
-- **§6.4** Won't forget to poll `get_generation_status` after the async `create_content`.
-- **§6.5** Will check both `blueprints` and `blueprint_drafts` in `list_blueprints` output.
-- **§6.6** Won't pass both `content` and `instructions`, and won't pass `content` with `blueprint_uuid`.
-- **§6.8** Will pass *option* IDs (not dimension IDs) in `dimension_option_ids`.
-- **§3.2** Will explicitly disambiguate where Acme source material should live (project context vs Reference Library vs document-specific) rather than guessing.
-- **§3.3** Discovery before creation — `list_projects` / `list_blueprints` / `get_relevant_context` all run before any create call.
-- **§3.1** State the full plan before `create_content` fires — single biggest place to land in the wrong project / with the wrong blueprint.
-- Will not create a project brief for this work — the case study is the output, not a brief-worthy initiative anchor (avoids §6.1 trap of needing the brief content to be in the project first).
+- Tell the user up front that blueprint generation is async (3–5 min) so they can context-switch.
+- Poll every ~30 seconds via `get_generation_status`.
+- Surface progress to the user every ~minute (not every poll).
+- Don't block silently. If `processing` lingers, say so.
+- On `failed`: surface the error verbatim, offer retry or adjust.
+- Never apply a tight client-side timeout — the wait is real and expected.
+- Do NOT call `get_content` during the wait or after completion (hand the link, not the body).
+
+---
+
+## 6. What I will NOT do (anti-patterns explicitly avoided)
+
+- **Will NOT call `marketcore:get_current_user_info`** to "verify auth" or "check quota." Auth is implicitly confirmed by any successful tool call.
+- **Will NOT call `marketcore:get_core_context`** before generating. Brand Foundation auto-injects as Layer 1.
+- **Will NOT pre-fetch broadly with `marketcore:get_relevant_context` before `create_content`.** `create_content` pulls all relevant context internally. The single Phase B call is the narrow Workflow-1 exception (specific customer name) — purely a user-facing sourcing check, not a generation prelude.
+- **Will NOT call `marketcore:get_content` after generation completes** to display the body. Hand the `link_url`. (Only legitimate post-gen uses: user asks a body-dependent question, or Word export via `convert_markdown_to_word_doc`.)
+- **Will NOT pass both `content` and `instructions`**, or `content` with `blueprint_uuid` (mutually exclusive).
+- **Will NOT pass dimension IDs where option IDs are required** — drill into the `options` array.
+- **Will NOT skip the announce-plan-before-act step.** I confirm blueprint, targeting, and project before calling `create_content`.
+- **Will NOT silently assume a project.** If the user doesn't say, I generate standalone — and I ask first.
+- **Will NOT duplicate content** to "put it in a project" later. If the user later wants this case study attached to a project (or set as a project brief), that's `marketcore:update_project(project_id, project_brief_id=<content_uuid>)` — which auto-attaches if needed. Never `get_content` + `create_content(project_id=...)`.
+- **Will NOT expose UUIDs to the user** as identifiers (per E10). I surface the title + `link_url`.
+
+---
+
+## 7. What gets surfaced at the end
+
+1. **The `link_url`** to the new case study in MarketCore (primary deliverable).
+2. **The title** of the generated content (so the user can find it later in their library).
+3. **Four follow-up offers:**
+   - Public share link via `marketcore:create_external_share` (Recipe D).
+   - Word export via `marketcore:get_content` + `marketcore:convert_markdown_to_word_doc` (Recipe E — the one legitimate `get_content` use case here, with the original `link_url` passed as `document_url` so the .docx footer links back).
+   - Refinement (re-generate with adjusted instructions, or a different blueprint).
+   - Pin as a project brief via `marketcore:update_project(project_brief_id=<this content's UUID>)` (Workflow 2) — though noting briefs are usually strategy anchors, not deliverables, so this is rarely the right move for a case study.
+
+---
+
+## 8. Error handling I'm prepared for
+
+- **Auth error** → tell user to reconnect MarketCore in their MCP client's integration settings; don't retry.
+- **Generation `failed`** → surface error verbatim, offer retry.
+- **`list_targeting_dimensions` lacks Healthcare or CIO option** → fall back to folding audience into `instructions` text and tell the user we used a softer targeting approach.
+- **No case-study blueprint exists** → check Blueprint Exchange (`list_community_blueprints`); if nothing fits, freeform sync generation (1–3 min), then offer Recipe A (create a reusable case-study blueprint) afterward.
+- **Quota / rate-limit error** → surface message text; do not retry in a tight loop.
+- **`"Project not found in your current team"`** (if the user names a project in another team) → ask them to switch active teams in MarketCore.

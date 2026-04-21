@@ -621,12 +621,12 @@ Returns all projects visible to the current user. Projects organize content into
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | string (uuid) | Project ID. Pass to `get_project` or use when creating deliverables |
+| `id` | string (uuid) | Project ID. Pass to `get_project` or use when creating content |
 | `name` | string | Project name |
 | `link_url` | string (uri) | Direct URL to view this project in the MarketCore app |
 | `visibility` | string | Visibility setting (e.g. team, private) |
 | `status` | string | Project status (e.g. active, archived) |
-| `deliverable_count` | integer | Number of deliverables in this project |
+| `content_count` | integer | Number of content items in this project |
 | `created_by` | string | Name of the project creator |
 | `member_count` | integer | Number of project members |
 
@@ -688,3 +688,33 @@ Create a new project for organizing content and context into a workstream.
 **Example prompts:**
 - "Create a project for our Q3 product launch"
 - "Start a new project called 'Brand Refresh 2025'"
+
+---
+
+### `update_project`
+
+Update mutable fields on an existing project (name, visibility, status, project brief). Uses PATCH semantics — only fields you pass are changed; omit a field to leave it unchanged.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project_id` | string (uuid) | Yes | UUID of the project to update. Get from `list_projects` or `get_project`. |
+| `name` | string | No | New project name. Must be non-empty when provided. |
+| `visibility` | string | No | New visibility setting. `team` makes it visible to all team members; `private` restricts to the creator and explicit project members. |
+| `status` | string | No | New project status. `active` for ongoing work; `archived` to hide from the active list while preserving content. Setting to `active` requires available active-project usage. |
+| `project_brief_id` | string (uuid) | No | UUID of an existing content item to set as this project's brief. If the content isn't already attached to the project, this tool will attach it AND set it as the brief in one call. |
+
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `success` | boolean | True if the update applied successfully |
+| `message` | string | Human-readable status message |
+| `project` | object \| null | The updated project record |
+
+**Example prompts:**
+- "Set the brief on the Acme Launch project to this content"
+- "Rename this project to 'Q4 GTM'"
+- "Make this project private"
+- "Archive the Brand Refresh project"

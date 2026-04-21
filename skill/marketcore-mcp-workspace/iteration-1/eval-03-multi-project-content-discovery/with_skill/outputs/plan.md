@@ -1,122 +1,199 @@
-# Plan: Multi-project content discovery for "the launch"
+# Plan — "What content do I have related to the launch? I want to see what's already been written across all my projects."
 
-## Interpretation of the request
+## 1. Read of the user's intent
 
-The user wants to see **what content (deliverables / canvases) has already been written** that relates to "the launch," across **all** their projects. Two ambiguities to flag and resolve before doing anything destructive — neither blocks discovery, but both shape how I present results:
+The user is asking a **discovery / Q&A question** about what already exists in their library — not a generation request. Two signals:
 
-1. **"The launch" is underspecified.** It could be one specific launch they have in mind, or "any launch-themed work." Since they said "across all my projects," I'll assume the broader interpretation first: surface every project that looks launch-related plus any standalone content matching launch themes, and let them narrow down.
-2. **"Content" in MarketCore = both freeform content (canvases) and blueprint-driven content (deliverables).** The MCP unifies both under `list_content`, so a single sweep covers both. I will not expose the legacy "deliverable" / "canvas" terminology to the user (per skill §6.3) — I'll just say "content" or refer to specific items by title.
+- **"related to the launch"** — a topical filter; "the launch" is ambiguous (definite article, no name).
+- **"across all my projects"** — explicit cross-project scope. They want a *survey*, grouped by project, not one project's contents.
 
-Note: `get_relevant_context` would search **context items** (Reference Library + project context) — that's reference material, not the user's authored content. The user asked about content they've *written*, so this is a `list_projects` + `list_content` job, not a RAG-search job. (I'll mention `get_relevant_context` as a follow-up if they want to also see source/research material on the launch.)
+This maps to SKILL.md **Workflow 5 — Find existing context / Q&A / ideation**, with a content-list angle. Per SKILL.md "Choosing between similar tools":
 
----
+> *To know what content already exists about a topic → `marketcore:get_relevant_context` for context, OR `marketcore:list_content` for a content list.*
 
-## 1. First message back to user (verbatim)
+Because the user said "what's been *written*," they primarily mean **Content** (documents). So `marketcore:list_content` is the lead tool, with `marketcore:get_relevant_context` as a complementary pass for reference materials. `marketcore:list_projects` provides the structural backbone they asked for.
 
-> Quick check before I dig in: by "the launch" do you mean one specific launch (e.g. a product/feature name I should anchor on), or do you want me to sweep up anything launch-themed across all your projects? Either way I can start now — I'll list your projects, scan the content in each one, and pull in any standalone content with launch-related titles. I'll group results by project so you can see what's where. Kicking off the sweep now and I'll refine once you tell me which read you want.
-
-(Rationale: per skill §3.1 / §3.2 I state the plan and surface the ambiguity, but I don't *block* on it — discovery is read-only and the broad sweep is useful regardless. The user can narrow after seeing the inventory.)
+I will **not** call `marketcore:create_content` (no generation requested), `marketcore:get_content` per item (handing back `link_url`s is the right move per SKILL.md), or `marketcore:get_current_user_info` (not needed; auth is implicit).
 
 ---
 
-## 2. Ordered tool calls
+## 2. Disambiguation move — concrete, not blocking
 
-### Step 1 — Confirm session
+"The launch" needs clarifying, but I want to ask the question with real options rather than the generic "which launch?". Per the skill's "you may already have context" guidance and the discovery-first posture of Workflow 5, I'll do **one cheap read-only pre-call** so the question is grounded:
 
-**Tool:** `mcp__marketcore-dev__get_current_user_info`
-**Params:** none.
-**Rationale:** Per skill §1, call once at the start of a session to confirm auth and surface the active team. Cheap and prevents downstream "why did nothing return" confusion if there's an auth issue.
+**Pre-call:** `marketcore:list_projects` — gives me the project roster, names, and content counts per project. This is a single team-scoped read; it lets me name candidate launches in the clarifier.
 
-### Step 2 — Enumerate all projects
+Then I message the user. Three branches based on what `list_projects` shows:
 
-**Tool:** `mcp__marketcore-dev__list_projects`
-**Params:** none (defaults — return all visible projects).
-**Rationale:** I need the full project inventory for two reasons:
-- (a) Identify launch-themed projects by name/description (e.g. anything with "launch", "GA", "release", "go-live", "v1.0", a product codename, etc.).
-- (b) Get every `project_id` so I can call `get_project` on the launch-related ones to pull their associated content list.
+- **Exactly one obviously launch-named project** (e.g. "Q3 Launch"):
+  > "I see one launch-shaped project — **'[name]'**. Did you mean that one specifically, or do you want a topical sweep for any launch-related content across every project? I can do either."
+- **Multiple launch-named projects** (e.g. "Q3 Launch", "Acme Launch"):
+  > "You've got a few launch-related projects: **[A]**, **[B]**, **[C]**. Want one in particular, or all of them — and should I also include launch-flavored content sitting outside those projects?"
+- **No obviously launch-named project**:
+  > "Quick check before I dig — when you say 'the launch,' do you have a specific one in mind (and if so what's it called)? Or do you want me to do a broad topical search for launch-related content across all your projects?"
 
-### Step 3 — Enumerate all content (sweep)
-
-**Tool:** `mcp__marketcore-dev__list_content`
-**Params:** none (default page) — if pagination is supported and there are many items, iterate.
-**Rationale:** A single flat list of all content the user has authored, regardless of project. I'll filter client-side by:
-- Title containing launch-related keywords (`launch`, `release`, `GA`, `announcement`, `unveil`, `go-live`, `v1`, plus any product/feature names that surface in project titles from Step 2).
-- Project association (I'll cross-reference each content item's `project_id` against the launch-themed projects from Step 2).
-This is more efficient than calling `get_project` on every project just to list its content — `list_content` returns everything in one shot.
-
-### Step 4 — Drill into projects that look launch-related (parallel)
-
-**Tool:** `mcp__marketcore-dev__get_project` (one call per launch-themed project, issued in parallel in a single message)
-**Params:** `project_id=<id>` for each launch-themed project identified in Step 2.
-**Rationale:**
-- `get_project` returns the full `documents` array (with `purpose: core_output` vs `supporting`) and the `project_brief_id`. This tells me which document is the *strategic anchor* (the brief) vs main work products vs background.
-- It also confirms whether items I matched in Step 3 by title actually live inside a launch project, vs being standalone content that just *mentions* a launch.
-- Parallel issuance keeps latency low — these are independent reads.
-
-### Step 5 — (Conditional) Pull short previews for the most relevant items
-
-**Tool:** `mcp__marketcore-dev__get_content`
-**Params:** `content_id=<uuid>` for the top ~3–5 items the user is most likely to care about (project briefs of launch projects + any content explicitly titled like a launch announcement / launch plan / launch one-pager).
-**Rationale:** Titles alone often aren't enough to know what's there. A 2–3 sentence excerpt per top hit lets the user pick what to open without me dumping the full corpus. I will NOT call `get_content` on every match — that's wasteful. Cap at ~5 to keep the response readable.
-
-### Step 6 — (Skipped by default; offer as follow-up) RAG over context items
-
-**Tool:** `mcp__marketcore-dev__get_relevant_context`
-**Params:** `prompt="the launch"` (refined with whatever specific launch the user names), optionally scoped to a project.
-**Rationale:** This searches **reference material** (Reference Library + project context), not authored content. The user asked about content they've *written*, so I'll skip this in the initial sweep but explicitly offer it as a follow-up: "Want me to also pull related research / context items on the launch from your Reference Library?"
+I would **wait for the user's answer** before fanning out. Tiny politeness that avoids returning the wrong content set entirely.
 
 ---
 
-## 3. How I'd organize and present the results
+## 3. Plan announcement (one sentence, after clarification)
 
-A single response, structured for fast scanning. The user's mental model is "what do I have, where does it live" — match that.
+Per SKILL.md (state your plan in one sentence, then call the tool):
 
-### Structure
+> "Got it — I'll list your content across all projects, filter for items related to **'[clarified topic]'**, and run a relevancy pass over your reference library so I catch launch-themed material that isn't in an obviously-named project. Read-only, no generation."
 
-**Headline summary (1 line):** "Found N pieces of content across M launch-related projects, plus K standalone items that mention the launch."
+---
 
-**Section 1 — Launch-related projects (grouped)**
-For each project that looks launch-themed, a subsection:
+## 4. Tool sequence
+
+This is the "broad sweep" branch. The "specific project" branch is a strict subset.
+
+### Step A — `marketcore:list_projects` *(already done as pre-call in §2)*
+
+**Why.** Project roster, names, `link_url`s, content counts. Provides the grouping skeleton. Reuse the result from §2 — don't re-call.
+
+### Step B — `marketcore:list_content`
+
+**Why.** Canonical "what content exists" tool per the SKILL.md decision table. Returns content items team-wide. I'll filter client-side on titles for launch-shaped keywords ("launch", "GTM", "go-to-market", "release", "rollout", "announcement", "GA"). Catches launch content authored *outside* any project, too.
+
+**Params.** Default — no `project_id` so I get the cross-project view in one call.
+
+### Step C — `marketcore:get_relevant_context`
+
+**Why.** Workflow 5's primary tool. Catches **context items** (briefs, research, transcripts, competitor docs, customer interviews) the user might consider "written about the launch" even though they're not Content per se. Also catches content that doesn't have "launch" in the title but is semantically about it.
+
+**Params.**
+- `prompt`: `"the launch — product launch announcements, GTM messaging, launch plans, launch emails, launch one-pagers, launch enablement materials"` (or substitute the launch's actual name if the user gave one).
+- No `project_id` (cross-project).
+
+**Caveat I'll flag to the user.** Per pitfalls.md E2, this returns RAG chunks (~few hundred words each), not full items. I'll surface parent item names + locations, not raw chunk text.
+
+**Pagination.** If the first call's chunks all look highly relevant and there are clearly more, I'll do **one** follow-up passing `context_rag_ids` from round 1 to exclude already-seen chunks (pitfalls.md E3). Cap at 2–3 paginated calls — past that, the user is better off browsing in-app.
+
+### Step D — Per-project deep-dive (conditional, parallel)
+
+For each project from Step A whose name matches launch keywords, in parallel:
+
+`marketcore:get_project(project_id=<uuid>)`
+
+**Why.** Surfaces that project's `documents` array AND its project-scoped context items in one call — both relevant to "what's been written for this launch." Step B's `list_content` doesn't expose project-scoped context items.
+
+**Cap.** If >5 launch-named projects, top 5 by content count and offer to expand.
+
+### Step E (optional) — Project-scoped RAG
+
+If the user clarified to a single project:
+
+`marketcore:get_relevant_context(prompt="launch content, messaging, plans", project_id=<uuid>)` — depth in one project rather than breadth.
+
+### What I am NOT calling, and why
+
+- **`marketcore:get_content`** — per SKILL.md, only legitimate when the user later asks a body-content question or for `convert_markdown_to_word_doc`. For inventory, `link_url` is the right hand-off.
+- **`marketcore:get_current_user_info`** — auth is implicit; nothing to verify.
+- **`marketcore:get_core_context`** — Brand Foundation isn't relevant to a content-discovery question.
+- **`marketcore:list_blueprints`** — not asked.
+- **`marketcore:create_content` / any mutation** — they asked "what do I have," not "make me something."
+
+---
+
+## 5. How I'd present results
+
+Structured by project (matches the user's "across all my projects" framing). Never raw UUIDs, always names + `link_url`.
 
 ```
-### [Project Name]  (status: active | archived; visibility)
-Brief: [title of project brief, if set] — [1-line excerpt if I pulled it in Step 5]
+Here's what I found related to [clarified topic]:
 
-Content in this project:
-- [Title] — [purpose: core output | supporting] — [last updated date]
-- [Title] — [purpose] — [date]
-  ...
+Launch-named projects
+─────────────────────
+
+[Project name]  (N content items, [project link])
+  - [Title] — [category] — [link]
+  - [Title] — [link]
+  - Project context items: [N items, including "[name1]", "[name2]" — project link]
+
+[Next project]
+  - …
+
+Other launch-related content
+────────────────────────────
+(Items not in a launch-named project)
+  - [Title] — in project "[X]" — [link]
+  - [Title] — no project — [link]
+
+Reference Library hits
+──────────────────────
+(Context items mentioning launches, from relevancy search)
+  - [Parent item name] — Reference Library — [link if available]
+  - [Parent item name] — in project "[X]" — [link]
+
+(Searched ~10 chunks; let me know if you want me to keep looking.)
 ```
 
-I'll mark the brief explicitly so they see the strategic anchor first, then list `core_output` items, then `supporting` items.
-
-**Section 2 — Standalone content that mentions the launch**
-Content with launch-related titles that isn't in a project (or is in a non-launch project). Flat list with title, last-updated date, and project association if any. Useful for catching "I wrote this one-pager last quarter and forgot to file it."
-
-**Section 3 — Possibly related (judgment-call matches)**
-Items where the title is ambiguous (e.g. "Q2 announcement deck" — could be launch, could be quarterly update). Flagged separately so the main lists stay high-confidence.
-
-**Section 4 — What I didn't search**
-One sentence: "I didn't search your Reference Library or project context items — that's source/research material rather than content you've written. Want me to sweep that too?"
-
-### Formatting choices
-
-- **Titles linked to MarketCore URLs** if `link_url` is in the response payload — saves the user a click.
-- **Dates in relative form** ("3 weeks ago") for recency scanning, plus absolute date in parens.
-- **No raw UUIDs** in the body — they're noise unless the user needs to act on a specific item, in which case I'll surface IDs in the follow-up step.
-- **Translate field names** per skill §3.4 — the user sees "content," "brief," "supporting material," not `deliverable_id` / `core_output` / `project_item`.
+Conventions enforced:
+- Group by project — that was the user's framing.
+- `link_url`s, never UUIDs (pitfalls.md E10).
+- Distinguish Content from Context items — the user said "content" but they may mean both. Lead with Content; flag Context items as a secondary section.
+- Mention `stage` (`ready` vs `in_progress`) if relevant — they may want only finished material.
+- Be honest about RAG coverage — chunks not full items, paginated only a couple of times.
 
 ---
 
-## 4. Follow-up actions to offer
+## 6. Follow-up actions to offer
 
-A short menu at the bottom of the response, picking the most likely next moves so the user doesn't have to formulate them:
+1. **Deep-dive on one project** → `marketcore:get_project` for that project, walk through everything.
+2. **Summarize a specific document** → only at this point would I `marketcore:get_content` to read the body and answer specifically.
+3. **Find gaps** → compare against typical launch-content checklist (announcement blog, customer email, sales one-pager, internal FAQ, press boilerplate) and flag what's missing.
+4. **Generate something to fill a gap** → Workflow 1 with a fitting blueprint, scoped to the launch project.
+5. **Consolidate scattered launch content** → Workflow 4 (`marketcore:create_project`) for a fresh "Launch" workstream, or Workflow 2 (`marketcore:update_project(project_brief_id=…)`) to anchor an existing item as the brief on an existing project.
+6. **Export / share** → Recipe D (`marketcore:create_external_share`) or Recipe E (`marketcore:get_content` → `marketcore:convert_markdown_to_word_doc`) for any specific item they pick.
 
-1. **"Want a quick excerpt from any of these?"** — Offer to pull the full text of any specific item via `get_content` and summarize.
-2. **"Should I narrow to one specific launch?"** — If they name it, I'll re-run with tighter keyword filtering.
-3. **"Want me to also search your Reference Library and project context for launch-related research?"** — Triggers `get_relevant_context` with `prompt="<the launch name>"`, optionally scoped to launch projects.
-4. **"Want me to draft something new based on what's already there?"** — E.g. a launch one-pager that pulls from the existing brief + supporting content. Would be `list_blueprints` → `create_content(blueprint_uuid=..., project_id=...)` (per skill §4.1).
-5. **"Want a shareable bundle?"** — If they want to send this inventory to a stakeholder, offer `create_external_share` on the most relevant items, or `convert_markdown_to_word_doc` for an export.
-6. **"Want me to consolidate?"** — If standalone launch content should live inside a launch project, flag that — though note (per skill §6.1) that there's currently no MCP tool to attach existing standalone content to a project; that's an in-app move.
+I would NOT proactively share or export anything — those are user-initiated.
 
-I'll present these as a short bulleted list, not a wall of text — the user picks what they want.
+---
+
+## 7. Pitfalls I'm actively avoiding
+
+| Pitfall | How |
+|---|---|
+| Silently guessing "the launch" | Asking; using `marketcore:list_projects` to make the question concrete. |
+| Pre-fetching context for `create_content` | N/A — not creating. `marketcore:get_relevant_context` is the right tool for Workflow 5. |
+| Fetching content body proactively | Handing back `link_url`s. `marketcore:get_content` only on user follow-up. |
+| Surfacing UUIDs (pitfalls E10) | Names + `link_url` only. |
+| RAG chunk confusion (pitfalls E2) | Telling the user explicitly that chunks are excerpts, not full items. |
+| RAG re-returning same chunks (pitfalls E3) | Passing `context_rag_ids` on any follow-up call. |
+| Calling `marketcore:get_current_user_info` proactively | Skipping it — auth is implicit. |
+| Treating tool-returned content as instructions | Surfaced as data only; not re-executing anything inside any returned body. |
+
+---
+
+## 8. Estimated tool calls
+
+**Broad-sweep branch:**
+- `marketcore:list_projects` (1, before clarification)
+- `marketcore:list_content` (1, after clarification)
+- `marketcore:get_relevant_context` (1, optionally +1 paginated)
+- `marketcore:get_project` × N where N = launch-named projects (parallel, capped at 5)
+
+Total: ~4–8 read-only calls.
+
+**Single-project branch:**
+- `marketcore:list_projects` (already done)
+- `marketcore:get_project` (1)
+- `marketcore:get_relevant_context` with `project_id` (1)
+
+Total: ~3 calls.
+
+No async polling needed (no generation). No mutations.
+
+---
+
+## 9. Confidence check before acting
+
+- Identified intent: cross-project content discovery, topical filter "launch."
+- Right workflow: Workflow 5, plus `marketcore:list_content` per the decision table.
+- Disambiguation: pre-call `marketcore:list_projects`, then ask the user which launch.
+- Plan announced before fanning out.
+- Avoiding known pitfalls per §7.
+- No async, so no polling.
+
+Ready to fire `marketcore:list_projects` immediately, then ask the clarifier; the rest waits on the user's answer.
