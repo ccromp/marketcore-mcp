@@ -54,7 +54,7 @@ MarketCore has a small number of first-class concepts. Internalize them before c
 
 - **Project brief** — A pinned Canvas or Deliverable inside a project that supplies high-level context for everything generated in that project. The Project record has a `project_brief_id` field that points to a `project_item` (the wrapper row that links the canvas/deliverable to the project). Two ways to set:
   - **At project creation:** `create_project(project_brief_details: ...)` — auto-generates a canvas brief and points the project at it.
-  - **On an existing project:** `update_project(project_id, project_brief_id=<content_uuid>)` — the tool takes the content's UUID and resolves it to the right `project_item` wrapper internally. The content MUST already be a document in the project (use `get_project` to confirm). For step-by-step recipes see `references/workflows.md` Recipe 6.
+  - **On an existing project:** `update_project(project_id, project_brief_id=<content_uuid>)`. The tool handles BOTH cases automatically: if the content is already in the project's documents, it uses the existing wrapper; if not, it attaches the content AND sets it as the brief in one call. You don't need to check first or attach manually. See Recipe 6 in `references/workflows.md`.
 
 - **Project context items** vs. **the project brief** — Both are project-scoped, but they serve different roles:
   - **Project brief**: the *primary* strategic anchor. One per project. Surfaced prominently in the project UI as "the brief."
@@ -107,7 +107,7 @@ The single biggest failure mode is acting on the wrong interpretation. Specifica
 - **"Add this to my reference library" / "add context"** — Ambiguous. Possibilities:
   - Top-level Reference Library item → `add_context` with no `project_id`.
   - Project-scoped context item → `add_context` with `project_id`.
-  - **Project brief** (sets the project's primary strategic anchor) → `update_project(project_id, project_brief_id=<content_uuid>)`. Note: the content must already be a document in the project; if it isn't, add it first with `create_content(project_id=...)` then call `update_project`.
+  - **Project brief** (sets the project's primary strategic anchor) → `update_project(project_id, project_brief_id=<content_uuid>)`. Works whether or not the content is already in the project — the tool auto-attaches if needed.
   - One-off context for a specific generation → don't store at all, just include via `collection_ids` / `dimension_option_ids` on `create_content`.
   - Ask: "Do you want this available across all projects (Reference Library), only inside the [project] project as supporting context, set as the *project brief* for [project], or just for this one piece of content?"
 
@@ -133,7 +133,6 @@ Before creating anything new, check what already exists:
 - Before `create_blueprint` → `list_blueprints` and `list_community_blueprints`. Maybe one already fits, or a community blueprint can be imported.
 - Before `add_context` → `list_context_collections` to see if there's a fitting collection.
 - Before `create_project` → `list_projects` to avoid duplicates.
-- Before `update_project(project_brief_id=...)` → `get_project` to confirm the content is actually in the project's `documents` array.
 
 **Don't pre-fetch context before `create_content`.** `create_content` already pulls all relevant context internally (Brand Foundation, Reference Library via relevancy scoring, Project Context if scoped, plus any explicit collections you pass). Calling `get_relevant_context` before `create_content` is wasted work — `get_relevant_context` is for *Q&A and ideation* only (when you need to read context yourself to answer the user), not for content-generation prep.
 
@@ -163,9 +162,9 @@ Quick decision trees for the most common requests. For full step-by-step recipes
 2. `list_blueprints` — does any blueprint match? If yes, propose it.
 3. `list_projects` — should this live in a project? If yes, propose `project_id`.
 4. If targeting matters, `list_targeting_dimensions` and pick `dimension_option_ids`.
-5. State plan (§3.1) → `create_content`.
-6. If async: poll `get_generation_status`, then `get_content`.
-7. Offer next-step: share link (`create_external_share`), Word export (`convert_markdown_to_word_doc`), or refine.
+5. State plan (§3.1) → `create_content` (it pulls all relevant context internally — don't pre-fetch).
+6. If async: poll `get_generation_status` until completed; then hand `content.link_url` to the user. Don't call `get_content`.
+7. Offer next-step: share link (`create_external_share`), Word export (`convert_markdown_to_word_doc` — this one legitimately needs `get_content` first), or refine.
 
 ### 4.2 "Add this to my reference library / context"
 
@@ -271,15 +270,13 @@ The full reference, including parameters, outputs, and example prompts, is in `r
 
 ## 6. Pitfalls and known limitations
 
-### 6.1 The brief content must already be in the project before you can set it as the brief
+### 6.1 Don't duplicate content to "add it" to a project
 
-`update_project(project_id, project_brief_id=<content_uuid>)` requires that the canvas or deliverable is already a document in the project (i.e., has a `project_item` row linking it to the project). If it isn't, the call returns: `"Content is not associated with this project. Add the content to the project first, then try again."`
+The bad pattern: agent wants to set existing content as a project's brief; calls `get_content` to fetch the markdown, then `create_content(project_id=...)` to "put it in the project," then `update_project` with the new UUID. Result: a duplicate piece of content with a fresh UUID, orphaned from the original.
 
-Two ways to ensure the content is in the project:
-- **New content**: create it inside the project — `create_content(project_id=<project_id>, ...)` — then set it as the brief in a follow-up `update_project` call.
-- **Existing standalone content**: there's currently no MCP tool to attach an existing standalone canvas/deliverable to a project. The user would need to do this in the app.
+Why this happens: the agent assumed it had to manually move content into a project. It doesn't. Attachment is a relationship (a `project_item` row that links project + content), not a copy.
 
-State this clearly when planning the flow with the user.
+What to do instead: just call `update_project(project_id, project_brief_id=<existing content UUID>)`. The tool handles the attachment AND brief-setting in one call — auto-attaches if needed.
 
 ### 6.2 `get_unified_deliverable` returns "Document not found" for unknown UUIDs
 
