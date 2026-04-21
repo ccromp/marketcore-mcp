@@ -9,26 +9,26 @@ Use these as templates for the most common end-to-end requests. Adapt the specif
 **User says:** "Write a case study about our Acme deployment using my case study template, targeting healthcare CIOs."
 
 ```
-1. get_current_user_info               → confirm auth + active team
-2. list_blueprints                     → find the user's case study blueprint
-   (also check blueprint_drafts in case it's still a draft)
-3. list_targeting_dimensions           → find the "Healthcare CIO" persona option ID
-4. list_projects                       → is this for an existing project? if yes, get project_id
-5. (optional) get_relevant_context     → preview context for "Acme deployment"
+1. list_blueprints                     → find the user's case study blueprint
+                                          (also check blueprint_drafts in case it's still a draft)
+2. list_targeting_dimensions           → find the "Healthcare CIO" persona option ID
+3. list_projects                       → is this for an existing project? if yes, get project_id
+4. (optional) get_relevant_context     → preview context for "Acme deployment"
                                           to surface anything missing
-6. STATE PLAN to user — name the blueprint, the persona option, the project
-7. create_content                      → with blueprint_uuid, instructions, project_id,
+5. STATE PLAN to user — name the blueprint, the persona option, the project
+6. create_content                      → with blueprint_uuid, instructions, project_id,
                                           dimension_option_ids
                                        → returns generation_id (async)
-8. get_generation_status (poll ~30s)   → until status == "completed"
+7. get_generation_status (poll ~30s)   → until status == "completed"
                                        → surface progress to user every minute
-9. get_content (with content_id)       → fetch full result
-10. Offer next steps: share link, Word export, refinement
+8. get_content (with content_id)       → fetch full result
+9. Offer next steps: share link, Word export, refinement
 ```
 
 **Don't:**
-- Skip steps 2–4 and just guess parameters.
+- Skip steps 1–3 and just guess parameters.
 - Forget to poll. The async response gives you only `generation_id`.
+- Call `get_current_user_info` proactively — every other tool call already runs as the authenticated user.
 
 ---
 

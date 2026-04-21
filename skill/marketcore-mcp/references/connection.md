@@ -51,14 +51,14 @@ The full URL is the credential — anyone with the URL can use the user's Market
 
 ## Verifying the connection
 
-After connecting, call `get_current_user_info` once to confirm:
+You do NOT need to call `get_current_user_info` proactively. Every MCP tool call is automatically scoped to the authenticated user's active team, so any successful call confirms auth is working. Only call `get_current_user_info` when the user explicitly asks about their profile, plan, usage, or active team — it returns:
 
 - The user's `name` and `email`.
 - The active `active_team_name` and `active_team_role`.
 - The `subscription_status` and `plan_name`.
 - Current `usage` against limits (AI credits, content count, canvas sessions).
 
-If this call fails with auth errors, the connection isn't established correctly. Direct the user back to their client's MCP config or to the integration settings page.
+If any other tool call fails with auth errors, the connection isn't established correctly. Direct the user back to their client's MCP config or to the integration settings page.
 
 ---
 

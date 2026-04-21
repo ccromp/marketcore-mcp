@@ -20,7 +20,7 @@ The MarketCore MCP server is a hosted remote server. There is nothing to install
 
 Both transports expose the same tools. The OAuth endpoint dynamically negotiates streaming HTTP or SSE.
 
-Confirm the user is connected before calling tools by invoking `get_current_user_info` once at the start of a session — it returns the active team, plan, and usage. If the call fails with auth errors, point the user to `references/connection.md`.
+Every tool call is automatically scoped to the authenticated user's active team — you do NOT need to call `get_current_user_info` proactively. Only call it when the user specifically asks about their MarketCore profile, plan, usage, or active team. If a different tool returns auth errors, point the user to `references/connection.md`.
 
 ---
 
@@ -209,7 +209,7 @@ Single call: `update_project(project_id, ...)` with whatever fields changed. PAT
 The full reference, including parameters, outputs, and example prompts, is in `references/tools.md`. The summary by category:
 
 **Account**
-- `get_current_user_info` — profile, team, plan, usage. Call once per session to confirm the user is authenticated and see active team.
+- `get_current_user_info` — profile, team, plan, usage. **Don't call proactively** — every other tool call is already scoped to the authenticated user. Only invoke when the user explicitly asks about their plan, usage, active team, or profile.
 
 **Context (Reference Library + project + on-the-fly retrieval)**
 - `get_core_context` — team's Brand Foundation (company / voice / style / examples).

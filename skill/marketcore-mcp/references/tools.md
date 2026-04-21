@@ -10,7 +10,7 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 
 ### `get_current_user_info`
 
-**When to call:** Once at the start of every session, to confirm auth and surface the active team. Also when the user asks about their plan or usage.
+**When to call:** ONLY when the user explicitly asks about their MarketCore profile, plan, usage, or active team. Don't call proactively to "verify auth" — every other tool call is already scoped to the authenticated user, so any successful call implicitly confirms auth.
 
 **Parameters:** None.
 
@@ -424,7 +424,7 @@ Workflows are a newer feature — fewer published patterns. The shape below is c
 
 | Need | Tool |
 |---|---|
-| Confirm who I'm talking to / which team | `get_current_user_info` |
+| User asks about their profile / plan / usage / active team | `get_current_user_info` (otherwise don't call it) |
 | Get the brand foundation | `get_core_context` |
 | See what's in the Reference Library | `list_context_collections`, `get_relevant_context` |
 | Add a reference doc | `add_context` |
