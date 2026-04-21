@@ -119,10 +119,12 @@ The single biggest failure mode is acting on the wrong interpretation. Specifica
 
 - **"Make a project for X"** — Ask whether they want to seed it with a brief now (via `project_brief_details` on `create_project`) or set it up empty and configure context afterward. With `update_project` available, both paths now work cleanly.
 
-- **"Set the brief on [project] to [document]"** — Two-step:
-  1. Confirm the document exists and is in the project (use `get_project` — look in the `documents` array).
-  2. If it's not in the project yet, add it: either `create_content(project_id=...)` to create new, or surface to the user that the existing content needs to be linked first.
-  3. `update_project(project_id, project_brief_id=<content_uuid>)`. State this plan before calling.
+- **"Set the brief on [project] to [document]"** — One step:
+  1. `update_project(project_id, project_brief_id=<content_uuid>)`. The tool handles BOTH cases automatically:
+     - If the content is already in the project's documents → uses the existing wrapper.
+     - If the content isn't in the project yet → attaches it AND sets it as the brief in one call.
+  2. **Never** call `get_content` to read the markdown then `create_content` to "duplicate" it into the project — that creates a second copy with a new UUID and is wrong. Content has its own identity; attaching it to a project is a relationship, not a copy. `update_project` does this for you.
+  3. State your plan before calling.
 
 ### 3.3 Discover before you create
 
@@ -131,16 +133,21 @@ Before creating anything new, check what already exists:
 - Before `create_blueprint` → `list_blueprints` and `list_community_blueprints`. Maybe one already fits, or a community blueprint can be imported.
 - Before `add_context` → `list_context_collections` to see if there's a fitting collection.
 - Before `create_project` → `list_projects` to avoid duplicates.
-- Before `create_content` (especially without a blueprint) → consider `get_relevant_context` to see what context the user already has on this topic. If sparse, suggest adding context first — content will be better.
 - Before `update_project(project_brief_id=...)` → `get_project` to confirm the content is actually in the project's `documents` array.
+
+**Don't pre-fetch context before `create_content`.** `create_content` already pulls all relevant context internally (Brand Foundation, Reference Library via relevancy scoring, Project Context if scoped, plus any explicit collections you pass). Calling `get_relevant_context` before `create_content` is wasted work — `get_relevant_context` is for *Q&A and ideation* only (when you need to read context yourself to answer the user), not for content-generation prep.
 
 ### 3.4 Use the user's terminology, but call the right tool
 
 The user might say "add to my Context Hub" / "add to GTM Library" / "make a deliverable" — those are MarketCore's older or higher-level names. Map them to current concepts (see §7 naming map) and call the current tool. Don't argue about naming. Don't make the user learn the API names — translate.
 
-### 3.5 Wait properly for async generations
+### 3.5 Wait properly for async generations — and hand the link to the user
 
-Blueprint-driven content (i.e. `create_content` with `blueprint_uuid`) is async. It returns a `generation_id` immediately. Poll `get_generation_status` until the status is `completed` (typical 3–5 minutes). Surface progress to the user every minute or so ("still generating, currently `processing`"). When complete, fetch the full result with `get_content` using the returned `content_id`.
+Blueprint-driven content (i.e. `create_content` with `blueprint_uuid`) is async. It returns a `generation_id` immediately. Poll `get_generation_status` until the status is `completed` (typical 3–5 minutes). Surface progress to the user every minute or so ("still generating, currently `processing`").
+
+**When complete, the response includes `content.link_url` — pass that link directly to the user. Do NOT call `get_content` to fetch the body.** The user opens the content in MarketCore via the link and reviews it themselves. Cora hands them the link; the user does the reading. The same applies for sync `create_content` — the response already contains `link_url`.
+
+Only call `get_content` later if the user asks a question that requires you to read the body to answer it (e.g. "summarize what my latest case study says about pricing").
 
 Freeform content (`create_content` with `instructions` only) is synchronous but can take 1–3 minutes — don't time out client-side without warning the user.
 
@@ -184,19 +191,26 @@ Quick decision trees for the most common requests. For full step-by-step recipes
 3. `create_project` with `name`, `visibility`, and optional `project_brief_details`.
 4. Offer to seed with project context items next via `add_context` (with `project_id`).
 
-### 4.5 "Find the most relevant context for [topic]"
+### 4.5 "What do we have on [topic]?" / Q&A and ideation
+
+This is the use case for `get_relevant_context` — when the user is asking a question, ideating, or wondering what's already in their library, and YOU need to read context to answer.
 
 `get_relevant_context` with a descriptive prompt. Optionally scope with `project_id` or `collection_ids`. Use `context_rag_ids` to paginate (exclude already-returned chunks).
 
+**Don't use `get_relevant_context` as a prelude to `create_content`** — `create_content` already pulls all relevant context internally.
+
 ### 4.6 "Set the brief on [existing project] to [content]"
 
-This is the multi-step flow `update_project` enables:
+One step:
 
-1. `get_project(project_id)` — verify the content (canvas or deliverable) is in the project's `documents` array.
-2. **If the content isn't in the project yet**: either create it there (`create_content(project_id=...)`) or surface to the user that they need to add the existing content to the project first via the app (no MCP tool currently adds an existing standalone content to a project's documents).
-3. State plan (§3.1).
-4. `update_project(project_id, project_brief_id=<content_uuid>)` — the tool resolves the UUID to the correct `project_item` wrapper internally and updates the project record.
-5. Confirm by calling `get_project` again or directing the user to the project's URL.
+1. `update_project(project_id, project_brief_id=<content_uuid>)`. The tool internally:
+   - Resolves the UUID (canvas or deliverable).
+   - Checks whether the content is already in the project's documents.
+   - If not, attaches it via the projects/documents endpoint, then resolves the new wrapper id.
+   - Sets `project.project_brief_id` to that wrapper id.
+2. State your plan (§3.1) before calling. Hand the project link back to the user when done.
+
+**Do NOT** copy/duplicate the content (do not call `get_content` to read markdown, then `create_content(project_id=...)` to "put it in the project"). That creates a second standalone copy with a new UUID and orphans the original. Attachment is a relationship, not a copy. `update_project` handles it correctly.
 
 ### 4.7 "Update [project's name | visibility | status]"
 
@@ -216,7 +230,7 @@ The full reference, including parameters, outputs, and example prompts, is in `r
 - `list_context_collections` — list collections.
 - `create_context_collection` — make a new collection.
 - `add_context` — add a context item (top-level or project-scoped).
-- `get_relevant_context` — RAG search across the user's library; supports collection / project scoping and pagination.
+- `get_relevant_context` — RAG search for **Q&A / ideation only** (when YOU need to read context to answer the user). NOT for pre-fetching before `create_content`.
 
 **Reference taxonomies**
 - `list_content_categories` — categories (use the `id` as `category_id` when creating blueprints / content).

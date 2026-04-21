@@ -80,7 +80,9 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 
 ### `get_relevant_context`
 
-**When to call:** Before generating content (to preview what context the AI will pull in), or when the user asks "what do we have on X?"
+**When to call:** ONLY when the user is asking a question or ideating and YOU need to read context to answer them. Examples: "what do we have on competitor X?", "remind me what our healthcare positioning is", "have we written anything about pricing yet?".
+
+**When NOT to call:** Before `create_content`. `create_content` already pulls all relevant context internally — pre-fetching is wasted work.
 
 **Parameters:**
 - `prompt` (required) — descriptive search string.
@@ -222,6 +224,8 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 
 **When to call:** Whenever the user wants to create a document — from scratch, from a blueprint, or by saving their own text.
 
+**This tool internally pulls all relevant context** (Brand Foundation + Reference Library via relevancy + Project Context if `project_id` is set + any `collection_ids` you pass). Don't pre-fetch with `get_relevant_context` — it's wasted work.
+
 **Three modes (mutually exclusive):**
 
 | Mode | Parameters | Behavior |
@@ -233,15 +237,17 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 `content` cannot be combined with `blueprint_uuid` or `instructions`.
 
 **Optional shaping parameters (any mode):**
-- `project_id` — associate with a project.
-- `category_id` — content category.
-- `collection_ids` — context collections to include in retrieval.
+- `project_id` — associate with a project (and pull its Project Context into generation).
+- `category_id` — content category (organizational only).
+- `collection_ids` — extra context collections to include on top of the always-on layers.
 - `dimension_option_ids` — targeting dimension *option* IDs.
 - `use_extended_thinking` — boolean, only for sync mode with `instructions` (no blueprint).
 
 **Outputs (sync modes):** `{ id, content_id (UUID), title, content, link_url, created_at }`.
 
 **Outputs (async mode):** `{ generation_id }` only — poll `get_generation_status` until completed.
+
+**After completion, hand `link_url` to the user.** Don't call `get_content` to fetch the body — the user reviews the content in MarketCore via the link.
 
 **Common errors:** Both `content` and `instructions` set; `content` + `blueprint_uuid`; invalid `blueprint_uuid`; sync timeout (it's normal — wait).
 
@@ -255,7 +261,9 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 
 **Key outputs:**
 - `status` — one of `pending`, `gathering context`, `processing`, `completed`, `failed`.
-- `content` — present when completed; contains `content_id` to fetch full content via `get_content`.
+- `content` — present when completed. Contains `link_url` (give this to the user) and `content_id` (only needed if the user later asks a question requiring the body — then pass to `get_content`).
+
+**When status is `completed`: hand `content.link_url` to the user.** Don't call `get_content` just to "show what was generated" — the user opens the content in MarketCore via the link.
 
 ---
 
@@ -271,7 +279,11 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 
 ### `get_content`
 
-**When to call:** When you need the full markdown body of a content item (e.g. for export, refinement, or to surface to the user).
+**When to call:** ONLY when YOU need to read the content body to answer a question the user asked about that content. Examples: "summarize what my latest case study says about pricing", "does the messaging doc mention HIPAA?", "what's the main argument in my Q3 launch blog?".
+
+Also call when you need the markdown body to feed another tool — e.g. `convert_markdown_to_word_doc` for Word export.
+
+**When NOT to call:** After `create_content` or `get_generation_status` returns `completed` — just hand the user the link. The user reviews the content in MarketCore. Cora doesn't read it for them.
 
 **Parameters:** `content_id` (required, UUID).
 
@@ -356,17 +368,17 @@ For workflow-level guidance ("which tools in what order"), see `workflows.md`. F
 - `name` (optional, text, trimmed) — new project name. Empty/whitespace is silently treated as unset (no clobber). Must be non-empty when provided meaningfully.
 - `visibility` (optional, enum) — `team` or `private`.
 - `status` (optional, enum) — `active` or `archived`. Setting `active` requires available active-project usage on the team's plan.
-- `project_brief_id` (optional, UUID) — content UUID (canvas or deliverable) to set as the project's brief. The tool resolves UUID → `project_item` wrapper internally. **The content MUST already be a document in the project** — confirm via `get_project` first; if not, add it via `create_content(project_id=...)` then call this tool.
+- `project_brief_id` (optional, UUID) — content UUID (canvas or deliverable) to set as the project's brief. **Works whether or not the content is already in the project** — if not, the tool attaches it AND sets the brief in one call. You don't need to add the document separately first; you don't need to check `get_project` first.
 
 **Key outputs:** `success` (bool), `message` (text), `project` (the updated project record). Errors return `success: false` with a diagnostic `error.message`.
 
 **Common errors:**
 - `"Project not found in your current team."` — wrong project ID, or the project belongs to a different team than the user's active team.
 - `"Document not found"` — `project_brief_id` UUID isn't in either canvases or deliverables.
-- `"Content is not associated with this project. Add the content to the project first, then try again."` — the content exists but isn't in this project's documents. See P1 in `pitfalls.md`.
 
 **Internal behavior worth knowing:**
 - Auth: requires editor or owner role on the team (calls `Check Team Role Authorization` with `allow_viewer: false` first).
+- Brief auto-attach: if the content UUID you pass isn't already a document in the project, the tool calls the projects/documents POST endpoint to attach it, then resolves the new wrapper id and sets the brief. You only need to make one call.
 - The underlying PATCH endpoint auto-sets `project_item.private_override = true` when a private content is set as the brief, so other project members can see it.
 - The endpoint also accepts `system_prompt` (deprecated — superseded by the project brief; do NOT try to use it) and `default_collection_ids` (deferred — not yet exposed via `update_project`).
 
@@ -426,15 +438,17 @@ Workflows are a newer feature — fewer published patterns. The shape below is c
 |---|---|
 | User asks about their profile / plan / usage / active team | `get_current_user_info` (otherwise don't call it) |
 | Get the brand foundation | `get_core_context` |
-| See what's in the Reference Library | `list_context_collections`, `get_relevant_context` |
+| User asks a question about their library / ideating | `get_relevant_context` (NOT for pre-fetching before `create_content`) |
+| List collections | `list_context_collections` |
 | Add a reference doc | `add_context` |
 | Find templates | `list_blueprints`, `list_community_blueprints` |
 | Make a template | `create_blueprint` (with sample) or `create_blueprint_draft` → `finalize_blueprint_draft` (from prompt) |
-| Generate a document | `create_content` |
-| Wait for async generation | `get_generation_status` → `get_content` |
-| List / fetch content | `list_content`, `get_content` |
-| Share / export | `create_external_share`, `convert_markdown_to_word_doc` |
+| Generate a document | `create_content` (it pulls all relevant context internally — don't pre-fetch with `get_relevant_context`) |
+| Wait for async generation | `get_generation_status` (then hand `link_url` to user — DON'T call `get_content`) |
+| List content | `list_content` |
+| Read content body to answer a question about it | `get_content` (only for Q&A about content; not after generation) |
+| Share / export | `create_external_share`, `convert_markdown_to_word_doc` (Word export legitimately needs `get_content` first) |
 | Manage workstreams | `list_projects`, `get_project`, `create_project`, `update_project` |
-| Set / change a project brief on an existing project | `update_project` (with `project_brief_id`) |
+| Set / change a project brief on an existing project | `update_project` (with `project_brief_id` — works whether or not the content is already in the project) |
 | Rename, archive, or change project visibility | `update_project` |
 | Multi-step automation | `list_workflows`, `run_workflow`, etc. |

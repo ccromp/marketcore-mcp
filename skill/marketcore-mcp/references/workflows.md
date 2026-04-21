@@ -13,22 +13,24 @@ Use these as templates for the most common end-to-end requests. Adapt the specif
                                           (also check blueprint_drafts in case it's still a draft)
 2. list_targeting_dimensions           → find the "Healthcare CIO" persona option ID
 3. list_projects                       → is this for an existing project? if yes, get project_id
-4. (optional) get_relevant_context     → preview context for "Acme deployment"
-                                          to surface anything missing
-5. STATE PLAN to user — name the blueprint, the persona option, the project
-6. create_content                      → with blueprint_uuid, instructions, project_id,
+4. STATE PLAN to user — name the blueprint, the persona option, the project
+5. create_content                      → with blueprint_uuid, instructions, project_id,
                                           dimension_option_ids
+                                       → create_content pulls all relevant context internally
+                                          (Brand Foundation, Reference Library, Project Context)
                                        → returns generation_id (async)
-7. get_generation_status (poll ~30s)   → until status == "completed"
+6. get_generation_status (poll ~30s)   → until status == "completed"
                                        → surface progress to user every minute
-8. get_content (with content_id)       → fetch full result
-9. Offer next steps: share link, Word export, refinement
+7. Hand response.content.link_url to the user — they review the content in MarketCore.
+   Offer next steps: share link, refinement.
 ```
 
 **Don't:**
 - Skip steps 1–3 and just guess parameters.
 - Forget to poll. The async response gives you only `generation_id`.
 - Call `get_current_user_info` proactively — every other tool call already runs as the authenticated user.
+- Call `get_relevant_context` before `create_content` — `create_content` already pulls context internally.
+- Call `get_content` after generation completes — hand the user the link, don't fetch the body. Only call `get_content` if the user later asks a question that requires reading the content body.
 
 ---
 
@@ -140,44 +142,32 @@ Use these as templates for the most common end-to-end requests. Adapt the specif
 
 **User says:** "Set the brief on the Acme Launch project to that messaging doc I just wrote."
 
-The brief is a Canvas or Deliverable that's already in the project's documents. The Project record's `project_brief_id` points at the wrapper. `update_project` resolves a content UUID to the wrapper internally — you just need to make sure the content is in the project first.
-
 ```
 1. list_projects                     → find the project_id for "Acme Launch"
-2. get_project (project_id)          → look at the documents array.
-                                       Is the messaging doc already there?
-
-3. If YES — content is in the project:
-   a. STATE PLAN ("I'll set the brief on Acme Launch to '<doc title>' via
-                   update_project with project_brief_id=<uuid>.")
-   b. update_project(
-        project_id=<uuid>,
-        project_brief_id=<content_uuid>
-      )
-   c. Confirm with link_url to the project.
-
-4. If NO — content isn't in the project yet:
-   a. Two sub-options:
-      A) Create the brief content fresh inside the project:
-         - create_content(project_id=<project_id>, instructions=...)
-           OR with content=<user's pre-written text>
-         - then update_project(project_id, project_brief_id=<new content_uuid>)
-      B) The user has standalone content they want to use:
-         - State that there's no MCP tool to attach existing standalone content
-           to a project's documents — they need to do this in the app first
-           (open project → "+ Add Document" → pick the content).
-         - Once added, follow path 3.
-
-5. Verify by calling get_project again or directing the user to the project's URL.
+                                       (and list_content if needed to identify the messaging doc)
+2. STATE PLAN ("I'll set the brief on Acme Launch to '<doc title>'.")
+3. update_project(
+     project_id=<project_uuid>,
+     project_brief_id=<content_uuid>
+   )
+4. Hand the project link to the user.
 ```
 
-**Note:** If `update_project` returns "Content is not associated with this project," go back to step 4 — the content isn't in the project's documents.
+`update_project` handles both cases automatically:
+- Content is already in the project's documents → uses the existing wrapper.
+- Content isn't in the project yet → attaches it AND sets it as the brief in one call.
+
+**Don't:**
+- Call `get_content` to "fetch the markdown" then `create_content(project_id=...)` to "duplicate" the content into the project. That creates a second standalone copy with a new UUID and is wrong. Attachment is a relationship, not a copy. `update_project` does the attachment for you.
+- Call `get_project` first just to check if the doc is in the project — `update_project` handles both states.
 
 ---
 
-## Recipe 7 — Find existing context relevant to a topic
+## Recipe 7 — Q&A or ideation: find existing context on a topic
 
-**User says:** "What context do I have about our enterprise pricing?"
+**User says:** "What context do I have about our enterprise pricing?" / "Have we written anything yet about competitor X?" / "I'm thinking about a campaign — what could I draw on?"
+
+This is when the user wants YOU to look at their library and answer them. NOT when they want content generated (for that, use `create_content` directly — it pulls context internally).
 
 ```
 1. get_relevant_context              → with prompt = "enterprise pricing"
@@ -205,7 +195,9 @@ The brief is a Canvas or Deliverable that's already in the project's documents. 
                                         → returns share_link (public URL)
 
 - For a Word export:
-   get_content (content_id)           → fetch the markdown body
+   get_content (content_id)           → fetch the markdown body (this is one of the
+                                        few legitimate uses for get_content — you need
+                                        the body bytes to convert)
    convert_markdown_to_word_doc       → with markdown_content (the content body),
                                         optional filename, optional document_url
                                         → returns download_url (.docx file)
@@ -228,10 +220,10 @@ Surface the link/URL directly to the user.
 
 3. Status meanings:
    - pending / gathering context / processing → still working, surface to user
-   - completed → fetch the content with get_content (use content_id from the response)
+   - completed → hand response.content.link_url to the user (don't call get_content)
    - failed → tell the user, offer to retry
 
-4. When complete, present the content and offer next steps.
+4. When complete, present the link and offer next steps (share, refine, export).
 ```
 
 ---

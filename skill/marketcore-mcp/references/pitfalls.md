@@ -4,17 +4,15 @@ Read this when something isn't working as expected, or proactively before any op
 
 ---
 
-## P1 — Brief content must already be in the project before you can set it as the brief
+## P1 — Don't duplicate content to "add it" to a project
 
-**Symptom:** `update_project(project_id, project_brief_id=<uuid>)` returns `"Content is not associated with this project. Add the content to the project first, then try again."`
+**Symptom (the bad pattern):** Agent wants to set existing content as a project's brief; it calls `get_content` to fetch the markdown, then `create_content(project_id=...)` to "put it in the project," then `update_project` with the new UUID. Result: a duplicate piece of content with a fresh UUID, orphaned from the original.
 
-**Cause:** The brief field on a project is an integer pointing to a `project_item` row that wraps a canvas or deliverable already in the project's documents. If the content (canvas/deliverable) isn't yet a project document, no wrapper exists, so the brief can't be set.
+**Why this happens:** the agent assumed it had to manually move content into a project. It doesn't. Attachment is a relationship (a `project_item` row that links project + content), not a copy.
 
-**What to do:**
-1. **For new content**: create it inside the project first — `create_content(project_id=<project_id>, ...)`. The project_item wrapper is created automatically. Then call `update_project` with that content's UUID.
-2. **For existing standalone content**: there's currently no MCP tool to attach an existing standalone canvas/deliverable to a project's documents. The user has to do this in the app (open the project → "+ Add Document" → pick the content). Once it's in the project, the `update_project` call works.
-
-State the limitation upfront before the user is surprised.
+**What to do instead:**
+- For setting a brief: just call `update_project(project_id, project_brief_id=<existing content UUID>)`. The tool handles the attachment AND brief-setting in one call. If the content is already in the project, it uses the existing wrapper; if not, it attaches first then sets the brief.
+- For attaching content to a project WITHOUT making it the brief: there's currently no dedicated MCP tool for this standalone case. Tell the user to attach via the app (open the project → "+ Add Document"). If you suspect this is needed often, surface it as a feature request.
 
 ---
 
