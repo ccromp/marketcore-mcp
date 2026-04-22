@@ -58,9 +58,9 @@ Add to your MCP client config:
 
 See [docs/quickstart.md](docs/quickstart.md) for setup instructions for Claude, ChatGPT, Claude Desktop, Cursor, and VS Code.
 
-## AI companion skill (recommended)
+## MarketCore AI Workflows (recommended)
 
-A companion **Anthropic Skill** ships alongside this server. It teaches your AI client MarketCore's mental model, the right tool sequencing, the questions to ask the user before acting, and the pitfalls to avoid — so the agent stops misfiring on tasks that look ambiguous from tool descriptions alone (e.g. setting a project brief, choosing between context destinations, generating from a blueprint vs. freeform).
+**MarketCore AI Workflows** is the companion **Anthropic Skill** that ships alongside this server. It teaches your AI client MarketCore's mental model, the right tool sequencing, the questions to ask the user before acting, and the pitfalls to avoid — so the agent stops misfiring on tasks that look ambiguous from tool descriptions alone (e.g. setting a project brief, choosing between context destinations, generating from a blueprint vs. freeform).
 
 ### Download
 

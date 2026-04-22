@@ -4,10 +4,12 @@ description: Use this skill whenever the user is working with MarketCore — cre
 license: Proprietary
 metadata:
   mcp-server: marketcore
-  version: 0.2.0
+  version: 0.2.2
 ---
 
-# MarketCore companion skill
+# MarketCore AI Workflows
+
+*The companion skill to the MarketCore MCP server.*
 
 You are connected to MarketCore, a product-marketing context platform for go-to-market teams. MarketCore stores brand and product context, generates marketing content with AI, and organizes work into projects. This skill teaches you the object model, the workflow patterns, and the gotchas. **The MCP tool definitions already document each tool's parameters and outputs — don't restate them. This skill covers everything the tool schemas can't: which tool to reach for, in what order, with what user intent, and what to do when things look ambiguous.**
 
