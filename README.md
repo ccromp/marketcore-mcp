@@ -62,26 +62,40 @@ See [docs/quickstart.md](docs/quickstart.md) for setup instructions for Claude, 
 
 A companion **Anthropic Skill** ships alongside this server. It teaches your AI client MarketCore's mental model, the right tool sequencing, the questions to ask the user before acting, and the pitfalls to avoid — so the agent stops misfiring on tasks that look ambiguous from tool descriptions alone (e.g. setting a project brief, choosing between context destinations, generating from a blueprint vs. freeform).
 
-The skill lives at [`skill/marketcore-mcp/`](skill/marketcore-mcp/). Install it in whichever client supports Anthropic Skills:
+### Download
 
-### Claude Code
+Get `marketcore-mcp.skill` from the [latest release](https://github.com/ccromp/marketcore-mcp/releases/latest). The `.skill` file is the canonical install artifact — a zip archive containing `SKILL.md` and the bundled reference files.
 
-Clone the repo and copy or symlink the skill into your skills directory:
+### Install
+
+**Claude Code:**
+
+```bash
+# Download and unzip into your skills directory
+mkdir -p ~/.claude/skills
+unzip ~/Downloads/marketcore-mcp.skill -d ~/.claude/skills/
+```
+
+Restart Claude Code. The skill loads automatically on any MarketCore-related task.
+
+**Claude Desktop:**
+
+Import the `.skill` file via Claude Desktop's Skills folder. See [Anthropic's Skills documentation](https://support.anthropic.com/en/articles/agent-skills) for the current path on your platform.
+
+**ChatGPT, Cursor, and other non-Anthropic clients:**
+
+These clients don't directly support Anthropic Skills (yet). Workaround: unzip the `.skill` file and paste the contents of `SKILL.md` into your client's custom instructions or system-prompt slot. The two reference files (`workflows.md` and `pitfalls.md`) can be pasted in too if your client supports longer context.
+
+### Power-user install (clone and symlink)
+
+If you'd rather track `main` directly:
 
 ```bash
 git clone https://github.com/ccromp/marketcore-mcp.git
 ln -s "$(pwd)/marketcore-mcp/skill/marketcore-mcp" ~/.claude/skills/marketcore-mcp
 ```
 
-Restart Claude Code. The skill loads automatically on any MarketCore-related task.
-
-### Claude Desktop
-
-Drop the `skill/marketcore-mcp/` directory into your Claude Desktop Skills folder. See [Anthropic's Skills documentation](https://support.anthropic.com/en/articles/agent-skills) for the current path on your platform.
-
-### ChatGPT, Cursor, and other non-Anthropic clients
-
-These clients don't directly support Anthropic Skills (yet). As a workaround, paste the contents of [`skill/marketcore-mcp/SKILL.md`](skill/marketcore-mcp/SKILL.md) into your client's custom instructions or system-prompt slot. The two reference files (`workflows.md` and `pitfalls.md`) can be loaded on demand or pasted in if your client supports longer context.
+The unbundled skill source lives at [`skill/marketcore-mcp/`](skill/marketcore-mcp/).
 
 ### Releases
 
