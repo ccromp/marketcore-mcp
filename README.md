@@ -1,6 +1,8 @@
 # MarketCore MCP Server
 
-> AI-powered product context management — connect your AI tools to MarketCore through the Model Context Protocol.
+> AI-powered product context management — connect your AI tools to [MarketCore](https://marketcore.ai) through the Model Context Protocol.
+
+**Learn more:** [marketcore.ai](https://marketcore.ai)
 
 ## About
 
