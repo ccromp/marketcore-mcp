@@ -2,6 +2,12 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-04-23
+
+### Added
+
+- **New tool:** `update_context` — update an existing context item's name, content, collection, or project association. When the item has a linked editing canvas open in the MarketCore sidebar, its title, content, and word count stay in sync automatically, and a realtime event is broadcast to any open editors. `collection_id` and `project_id` use full-replace semantics — you must pass them on every call (pass `null` to clear).
+
 ## 2026-04-17
 
 ### `create_content` — Direct content support

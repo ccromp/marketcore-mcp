@@ -201,6 +201,7 @@ The five workflows you'll handle 80% of the time. Long-tail recipes (workflow-ru
 | To attach an existing Content item to a project (no brief intent) | `marketcore:update_project(project_brief_id=…)` (which auto-attaches), OR have the user attach in-app | Don't `create_content(project_id=…)` to "duplicate" it into the project — orphaned copy. |
 | To add reference material reusable across all projects | `marketcore:add_context` (no `project_id`) | A Context Collection is just a folder; you still need `add_context` to put items in it. |
 | To add reference material specific to one project | `marketcore:add_context(project_id=…)` | `update_project(project_brief_id=…)` would make it the brief — only one of those per project. |
+| To edit the name, content, or location of an existing context item | `marketcore:update_context` | `add_context` would create a duplicate. Note: `collection_id` and `project_id` are full-replace on every call — pass `null` to clear. |
 | To know what content already exists about a topic | `marketcore:get_relevant_context` for context, OR `marketcore:list_content` for a content list | `create_content` would generate something new — wrong tool for "what already exists." |
 
 ---

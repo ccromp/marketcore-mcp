@@ -140,6 +140,44 @@ Add a new context item to your reference library. Context items are reference ma
 
 ---
 
+### `update_context`
+
+Update an existing context item — change its name, content, or move it between collections / projects. If the item has a linked editing canvas open in the MarketCore sidebar, its title and content stay in sync automatically.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `context_item_id` | string (uuid) | Yes | The context item to update |
+| `name` | string | No | If provided, updates the name. Omit to leave unchanged |
+| `content` | string | No | If provided, updates the content. Omit to leave unchanged. Triggers RAG re-embedding |
+| `collection_id` | integer \| null | **Yes (nullable)** | Full replace. Pass the current ID to keep the item in its collection, pass a different ID to move it, or pass `null` to remove it from any collection |
+| `project_id` | string (uuid) \| null | **Yes (nullable)** | Full replace. Pass the current ID to keep the project association, pass a different ID to move it, or pass `null` to disassociate it |
+
+> **Important:** `collection_id` and `project_id` use full-replace semantics — you must pass them on every call. Omitting them is NOT the same as leaving them unchanged. If you don't know the current values, check the context item in the web app before updating.
+
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Context item ID |
+| `name` | string | Updated context item name |
+| `content` | string | Updated reference content |
+| `content_intro` | string | Truncated content intro used in listings |
+| `collection_id` | integer \| null | Collection this item belongs to (null if none) |
+| `project_id` | string \| null | Project this item is associated with (null if none) |
+| `word_count` | integer | Word count of updated content |
+| `updated_at` | integer | Unix timestamp of last update |
+| `relevancy_processed_status` | string | RAG re-processing status (`unprocessed`, `provisional`, `complete`). Flips to `unprocessed` whenever name or content changes |
+| `link_url` | string | Direct URL to view this context item in the MarketCore app |
+
+**Example prompts:**
+- "Rename that brand voice context item to 'Brand Voice v2'"
+- "Move the competitive analysis out of the 'Archive' collection"
+- "Update our pricing context with the new Enterprise tier info"
+
+---
+
 ### `get_relevant_context`
 
 Searches the team's context library and returns the most relevant chunks for a given prompt. Use this to gather supporting context before generating or refining content.
