@@ -4,7 +4,7 @@ description: Use this skill whenever the user is working with MarketCore — cre
 license: Proprietary
 metadata:
   mcp-server: marketcore
-  version: 0.2.2
+  version: 0.2.3
 ---
 
 # MarketCore AI Workflows
@@ -56,7 +56,7 @@ These are MarketCore's core nouns. Internalize them before calling any tool.
 
 - **Content category** — A taxonomy slot for blueprints and content (GTM Strategy, Product Launch, Sales Enablement). Required when creating a blueprint, optional when creating content. Organizational only — doesn't change generation behavior.
 
-- **Workflow** — A multi-step automation that orchestrates several content generations in sequence. Newer feature; treat as advanced.
+- **Workflow** — A reusable, multi-step process the user can run on demand or on a schedule. **For anything workflow-related — building, editing, running, troubleshooting — defer to the `marketcore-workflow-builder` skill.** It owns the 6 workflow tools (`create_workflow`, `update_workflow`, `run_workflow`, `get_workflow`, `list_workflows`, `get_workflow_runs`) and the patterns around output destinations, scheduling, and dedup.
 
 ### Relationship map
 
@@ -263,7 +263,7 @@ When things go wrong, surface the raw error to the user — don't silently retry
 - **Project brief** — A Content item pinned as a project's strategic anchor.
 - **Reference Library** — The team-wide top-level set of context items.
 - **Targeting dimension** — Categorical attribute (Persona, Industry, Buying Stage…) with selectable options.
-- **Workflow** — Multi-step generation automation.
+- **Workflow** — Reusable multi-step process. See the `marketcore-workflow-builder` skill.
 
 ---
 
