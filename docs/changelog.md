@@ -2,6 +2,22 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-04-29
+
+### Added
+
+- **New category: Plans** — 4 new tools for managing content plans:
+  - `list_plans` — paginated list of plans with filters by stage, source, project, and category
+  - `get_plan` — fetch a single plan by UUID with full linked data (references, collections, dimensions, produced content)
+  - `create_plan` — create a new plan with optional pre-attachments and blueprint prompt
+  - `update_plan` — partial update: mutable fields and stage transitions
+
+### Enhanced
+
+- `create_content` — new optional `plan_id` parameter: associates the new content with a plan and triggers an automatic stage transition to `In_Process`. Auto-linking applies when used with `blueprint_uuid`. Do not pass if the plan is in `Complete` stage.
+
+---
+
 ## 2026-04-23
 
 ### Added

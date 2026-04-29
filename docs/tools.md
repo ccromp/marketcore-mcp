@@ -490,6 +490,7 @@ You must provide either `content` or `instructions` (not both).
 | `content` | string | No* | Your own text to save directly as a document. Cannot be used with `blueprint_uuid` |
 | `instructions` | string | No* | Detailed instructions describing what to create (AI will generate it) |
 | `blueprint_uuid` | string | No | Blueprint UUID to generate from. Makes the call async. Only works with `instructions` |
+| `plan_id` | string (uuid) | No | Plan UUID from `create_plan`, `list_plans`, or `get_plan` (use `plan_uuid`, not the integer id). Associates the new content with the plan and triggers an automatic stage transition to `In_Process`. Auto-linking only applies when used with `blueprint_uuid`. Do not pass if the plan is in `Complete` stage — call `update_plan` with `target_stage=Accepted` first |
 | `project_id` | string | No | Project to associate this content with |
 | `category_id` | integer | No | Content category ID |
 | `collection_ids` | array | No | Context collection IDs to include |
@@ -756,3 +757,178 @@ Update mutable fields on an existing project (name, visibility, status, project 
 - "Rename this project to 'Q4 GTM'"
 - "Make this project private"
 - "Archive the Brand Refresh project"
+
+---
+
+## Plans
+
+Plans are units of content intent — a titled, assignable record that captures what content needs to be created, when, and with what context. Use plans to queue content work, track progress through stages, and link produced content back to the originating plan.
+
+**Stage lifecycle:** `Suggested` → `Accepted` → `In_Process` → `Complete` (or `Dismissed` from any stage except `Dismissed`).
+
+---
+
+### `list_plans`
+
+Returns a paginated list of plans visible to the authenticated user. Use filters to narrow by stage, source, project, or category.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `stage` | string[] | No | Filter by stage. Use UNDERSCORE form (e.g. `In_Process`). Allowed: `Suggested`, `Accepted`, `In_Process`, `Complete`, `Dismissed`. Only the first element is honored currently |
+| `source` | string[] | No | Filter by source. Allowed: `user_added`, `cora_proactive`, `cora_requested`, `workflow`, `playbook`. Only the first element is honored currently |
+| `project_id` | string | No | Filter to plans associated with this project UUID |
+| `category_id` | integer | No | Filter to plans in this content category |
+| `assignee_scope` | string | No | Whose plans to return: `me` (default), `created_by_me`, or `all_visible` |
+| `due_before` | string | No | ISO date YYYY-MM-DD. Note: does not apply yet |
+| `due_after` | string | No | ISO date YYYY-MM-DD. Note: does not apply yet |
+| `search_text` | string | No | Substring match on plan title. Note: does not apply yet |
+| `sort` | string | No | `due_asc_nulls_last` (default) or `created_desc` |
+| `page` | integer | No | Page number (default 1) |
+| `per_page` | integer | No | Items per page (default 20, max 100) |
+
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `items` | array | Array of plan objects |
+| `items[].plan_uuid` | string (uuid) | Plan UUID — use this (not integer id) with `get_plan`, `update_plan`, and `create_content` |
+| `items[].title` | string | Plan title |
+| `items[].stage` | string | Current stage |
+| `items[].source` | string | How the plan was created |
+| `items[].assigned_to` | integer | User ID of assignee |
+| `items[].created_by` | integer | User ID of creator |
+| `items[].due_date` | string | Due date (YYYY-MM-DD), or null |
+| `items[].produced_content_id` | string | UUID of linked content item, or null |
+| `items[].created_at` | string | ISO timestamp |
+| `items[].updated_at` | string | ISO timestamp |
+| `itemsTotal` | integer | Total number of matching plans |
+| `curPage` | integer | Current page |
+| `nextPage` | integer/null | Next page number, or null if last page |
+| `prevPage` | integer/null | Previous page number, or null if first page |
+
+**Example prompts:**
+- "Show me my pending plans"
+- "List all Accepted plans assigned to me"
+- "What plans are in progress?"
+
+---
+
+### `get_plan`
+
+Fetch a single plan by UUID with full details including linked references, context collections, targeting dimensions, and produced content.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `plan_uuid` | string (uuid) | Yes | UUID of the plan to fetch. Use `plan_uuid`, not the integer id |
+
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `plan.plan_uuid` | string (uuid) | Plan UUID |
+| `plan.id` | integer | Integer record ID (use `plan_uuid` for API calls) |
+| `plan.title` | string | Plan title |
+| `plan.description` | string | Free-text description |
+| `plan.stage` | string | Current stage |
+| `plan.source` | string | How the plan was created (immutable) |
+| `plan.prompt` | string | Content prompt pre-set for this plan |
+| `plan.blueprint_id` | string | Blueprint UUID, or null |
+| `plan.project_id` | string | Project UUID, or null |
+| `plan.category_id` | integer | Content category ID, or null |
+| `plan.due_date` | string | Due date, or null |
+| `plan.assigned_to` | integer | Assignee user ID |
+| `plan.created_by` | integer | Creator user ID |
+| `plan.team_id` | integer | Team ID |
+| `plan.produced_content_id` | string | UUID of produced content, or null |
+| `plan.reference_documents` | array | Deliverables attached as reference material |
+| `plan.context_collections` | array | Context collections pre-attached to the plan |
+| `plan.targeting_dimensions` | array | Targeting dimension options pre-attached |
+| `plan._produced_content` | object/null | Full produced content object, or null |
+| `plan._source_metadata_resolved` | object/null | Resolved source metadata, or null |
+
+**Example prompts:**
+- "Show me the details of that plan"
+- "What references are attached to this plan?"
+
+---
+
+### `create_plan`
+
+Create a new content plan in the authenticated user's active team.
+
+**Starting stage by source:**
+- `user_added`, `cora_requested`, `playbook` → starts at **Accepted**
+- `cora_proactive` → starts at **Suggested**
+- `workflow` → starts at **Suggested** (by default)
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | Yes | One-line summary of the content intent (1-200 characters) |
+| `description` | string | No | Free-text description |
+| `due_date` | string | No | ISO date YYYY-MM-DD |
+| `prompt` | string | No | Content prompt that pre-populates the creation form when the plan is acted on |
+| `blueprint_id` | string (uuid) | No | UUID of the content blueprint/template |
+| `project_id` | string (uuid) | No | Project UUID to associate with |
+| `category_id` | integer | No | Content category ID (from `list_content_categories`) |
+| `reference_document_ids` | string[] | No | Deliverable UUIDs to associate as reference material |
+| `context_collection_ids` | integer[] | No | Integer collection IDs to pre-attach (from `list_context_collections`) |
+| `targeting_dimension_ids` | integer[] | No | Integer dimension option IDs to pre-attach (from `list_targeting_dimensions`) |
+| `source` | string | No | `user_added`, `cora_proactive`, `cora_requested`, `workflow`, or `playbook`. Default: `cora_requested`. Immutable after creation |
+| `source_metadata` | object | No | Contextual metadata (JSON). Immutable after creation |
+| `assigned_to` | integer | No | Integer user ID. Defaults to creator. Must be a current team member |
+| `plan_uuid` | string (uuid) | No | Client-supplied UUIDv4 for optimistic creates. Server generates if omitted |
+
+**Output:** Full plan object (same fields as `get_plan`).
+
+**Example prompts:**
+- "Create a plan to write a case study about our Acme deal"
+- "Add a content plan for a Q3 product launch blog post"
+
+---
+
+### `update_plan`
+
+Partial update of a plan: mutable fields and stage transitions. All fields are optional — supply only what you want to change.
+
+> **Array fields replace entirely:** `reference_document_ids`, `context_collection_ids`, and `targeting_dimension_ids` REPLACE the full set when provided. Pass `[]` to clear all.
+
+> **Nullable fields:** Pass `null` to clear `blueprint_id`, `project_id`, `category_id`, and `due_date`.
+
+**Stage transition rules:**
+- `Suggested` → `Accepted` or `Dismissed`
+- `Accepted` → `In_Process` or `Dismissed`
+- `In_Process` → `Complete`, `Accepted`, or `Dismissed`
+- `Complete` → `Accepted` or `Dismissed`
+- `Dismissed` → terminal, no further transitions
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `plan_uuid` | string (uuid) | Yes | UUID of the plan to update |
+| `title` | string | No | New title |
+| `description` | string | No | New description |
+| `prompt` | string | No | Updated content prompt |
+| `blueprint_id` | string/null | No | Blueprint UUID. Pass `null` to clear |
+| `project_id` | string/null | No | Project UUID. Pass `null` to clear |
+| `category_id` | integer/null | No | Content category ID. Pass `null` to clear |
+| `due_date` | string/null | No | ISO YYYY-MM-DD. Pass `null` to clear |
+| `assigned_to` | integer | No | Integer user ID. Must be a current team member |
+| `reference_document_ids` | string[] | No | REPLACES the full set of reference documents. Pass `[]` to clear all |
+| `context_collection_ids` | integer[] | No | REPLACES the full set of context collections. Pass `[]` to clear all |
+| `targeting_dimension_ids` | integer[] | No | REPLACES the full set of targeting dimensions. Pass `[]` to clear all |
+| `target_stage` | string | No | Trigger a stage transition. Use UNDERSCORE form (e.g. `In_Process`). Allowed: `Suggested`, `Accepted`, `In_Process`, `Complete`, `Dismissed` |
+
+**Output:** Updated plan object with all fields.
+
+**Example prompts:**
+- "Mark this plan as In Progress"
+- "Assign this plan to the content team"
+- "Set a due date of next Friday on this plan"
+- "Dismiss the outdated Q2 plan"
