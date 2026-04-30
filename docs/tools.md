@@ -844,7 +844,7 @@ Fetch a single plan by UUID with full details including linked references, conte
 | `plan.created_by` | integer | Creator user ID |
 | `plan.team_id` | integer | Team ID |
 | `plan.produced_content_id` | string | UUID of produced content, or null |
-| `plan.reference_documents` | array | Deliverables attached as reference material |
+| `plan.reference_documents` | array | Content items attached as reference material |
 | `plan.context_collections` | array | Context collections pre-attached to the plan |
 | `plan.targeting_dimensions` | array | Targeting dimension options pre-attached |
 | `plan._produced_content` | object/null | Full produced content object, or null |
@@ -876,7 +876,7 @@ Create a new content plan in the authenticated user's active team.
 | `blueprint_id` | string (uuid) | No | UUID of the content blueprint/template |
 | `project_id` | string (uuid) | No | Project UUID to associate with |
 | `category_id` | integer | No | Content category ID (from `list_content_categories`) |
-| `reference_document_ids` | string[] | No | Deliverable UUIDs to associate as reference material |
+| `reference_document_ids` | uuid[] | No | Content UUIDs to associate as reference material |
 | `context_collection_ids` | integer[] | No | Integer collection IDs to pre-attach (from `list_context_collections`) |
 | `targeting_dimension_ids` | integer[] | No | Integer dimension option IDs to pre-attach (from `list_targeting_dimensions`) |
 | `source` | string | No | `user_added`, `cora_proactive`, `cora_requested`, `workflow`, or `playbook`. Default: `cora_requested`. Immutable after creation |
