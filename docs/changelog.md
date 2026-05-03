@@ -2,6 +2,13 @@
 
 All notable changes to the MarketCore MCP server will be documented in this file.
 
+## 2026-05-02
+
+### Added
+
+- **New tool:** `list_context_items` — list context items in your team's library, with `id`, `name`, `content_intro`, `content_type`, `word_count`, `added_by`, `collection_id`, `project_id`, and other metadata. By default returns all items the user can see; set `reference_library_only=true` to return only items not in any project or collection. Honors collection and project privacy: items in private collections you don't own and items in private projects you're not a member of are filtered out.
+- **New tool:** `get_context_item` — fetch the full markdown content of a single context item by ID. Same privacy rules as `list_context_items`. IDs can come from `list_context_items`, `get_project`, `list_context_collections`, or `get_relevant_context`.
+
 ## 2026-04-29
 
 ### Added

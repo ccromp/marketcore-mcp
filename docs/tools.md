@@ -55,7 +55,7 @@ Returns the team's core context — foundational brand and company information u
 
 ---
 
-### `get_context_collections`
+### `list_context_collections`
 
 Returns all context collections accessible to the current user. Collections organize reference materials (context items) that inform AI-generated content.
 
@@ -117,7 +117,7 @@ Add a new context item to your reference library. Context items are reference ma
 |---|---|---|---|
 | `name` | string | Yes | Descriptive name for the context item |
 | `content` | string | Yes | The reference content to store |
-| `collection_id` | integer | No | Collection ID to organize the item (from `get_context_collections` or `create_context_collection`) |
+| `collection_id` | integer | No | Collection ID to organize the item (from `list_context_collections` or `create_context_collection`) |
 | `project_id` | string | No | Project ID to associate with (from `get_projects`) |
 
 **Output:**
@@ -154,7 +154,7 @@ Update an existing context item — change its name, content, or move it between
 | `collection_id` | integer \| null | **Yes (nullable)** | Full replace. Pass the current ID to keep the item in its collection, pass a different ID to move it, or pass `null` to remove it from any collection |
 | `project_id` | string (uuid) \| null | **Yes (nullable)** | Full replace. Pass the current ID to keep the project association, pass a different ID to move it, or pass `null` to disassociate it |
 
-> **Important:** `collection_id` and `project_id` use full-replace semantics — you must pass them on every call. Omitting them is NOT the same as leaving them unchanged. If you don't know the current values, check the context item in the web app before updating.
+> **Important:** `collection_id` and `project_id` use full-replace semantics — you must pass them on every call. Omitting them is NOT the same as leaving them unchanged. If you don't know the current values, call `get_context_item` first or check the context item in the web app before updating.
 
 **Output:**
 
@@ -175,6 +175,85 @@ Update an existing context item — change its name, content, or move it between
 - "Rename that brand voice context item to 'Brand Voice v2'"
 - "Move the competitive analysis out of the 'Archive' collection"
 - "Update our pricing context with the new Enterprise tier info"
+
+---
+
+### `list_context_items`
+
+Lists context items from the team's context library. By default returns all items the user can see (across projects, collections, and the reference library). Set `reference_library_only=true` to return only items that are not in any project or collection — these are the items shown in the "Reference Library" section of the MarketCore web app.
+
+Each returned item carries its own `collection_id` and `project_id` (both nullable), so you always know where it lives. To get the full markdown content of any item, pass its id to `get_context_item`.
+
+**Privacy:** items in private collections (where you are not the creator) and items in private projects (where you are not a member) are filtered out — they will not appear in the response.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `reference_library_only` | boolean | No | When `true`, returns only items not in any project or collection. Default `false` returns everything |
+
+**Output:** An array of context items. Each item has:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (uuid) | Context item ID. Pass to `get_context_item` to fetch full markdown |
+| `name` | string | Context item name |
+| `content_intro` | string | Short truncation of the content for previews |
+| `content_type` | string | One of `manual`, `webpage`, `canvas`, `deliverable`, `integration_data`, `call_transcript`, `file` |
+| `word_count` | integer | Word count of the full content |
+| `created_at` | integer | Unix timestamp of creation |
+| `updated_at` | integer \| null | Unix timestamp of last update |
+| `added_by` | object | `{id, name}` of the user who added the item |
+| `relevancy_processed_status` | string | RAG indexing status (`unprocessed`, `provisional`, `complete`) |
+| `collection_id` | integer \| null | Collection this item lives in, or `null` |
+| `project_id` | string (uuid) \| null | Project this item is associated with, or `null` |
+
+**Other ways to discover context-item IDs:**
+- `get_project(project_id).context_items` — items attached to a specific project
+- `get_relevant_context` — returns `context_item_ids` of parent items for matched chunks
+
+**Example prompts:**
+- "What context items do I have in MarketCore?"
+- "Show me everything in my reference library"
+- "List the context items I haven't filed into a collection or project"
+
+---
+
+### `get_context_item`
+
+Fetch the full markdown content of a single context item by ID. Use this when you need the actual content of an item — `list_context_items` only returns `content_intro` (a short truncation).
+
+The IDs you pass here can come from `list_context_items`, `get_project(project_id).context_items`, `list_context_collections`, or `get_relevant_context`.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `context_item_id` | string (uuid) | Yes | UUID of the context item to fetch |
+
+**Output:**
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (uuid) | Context item ID |
+| `name` | string | Context item name |
+| `content` | string | Full markdown content |
+| `content_intro` | string | Short truncation used in listings |
+| `content_type` | string | One of `manual`, `webpage`, `canvas`, `deliverable`, `integration_data`, `call_transcript`, `file` |
+| `word_count` | integer | Word count of the content |
+| `created_at` | integer | Unix timestamp of creation |
+| `updated_at` | integer \| null | Unix timestamp of last update |
+| `added_by` | object | `{id, name}` of the user who added the item |
+| `relevancy_processed_status` | string | RAG indexing status |
+| `collection_id` | integer \| null | Collection this item lives in, or `null` |
+| `project_id` | string (uuid) \| null | Project this item is associated with, or `null` |
+| `link_url` | string | Direct URL to view this context item in the MarketCore app |
+
+**Authorization:** the item must belong to your team. Items in private collections (where you are not the creator) and items in private projects (where you are not a member) return a 404 — same as items that do not exist.
+
+**Example prompts:**
+- "Pull the full content of my brand voice guide"
+- "Show me what's actually in that competitor analysis context item"
 
 ---
 
