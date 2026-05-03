@@ -180,13 +180,24 @@ The five workflows you'll handle 80% of the time. Long-tail recipes (workflow-ru
 
 **Preconditions.** None.
 
-**Steps.**
+**Pick the right discovery tool based on intent:**
+- **RAG search ("what do we have on topic X?")** → `marketcore:get_relevant_context`. Returns relevance-ranked chunks. Best when the user has a question that needs *content*, not a list.
+- **Browse the catalog ("what context items do I have?", "show me my reference library")** → `marketcore:list_context_items`. Returns names + intros + IDs. No RAG, just inventory. Set `reference_library_only=true` to scope to top-level Reference Library items only (i.e. items not in any project or collection).
+- **Fetch the full content of a known item ("pull the brand voice guide", "open the manager-feedback transcript")** → `marketcore:get_context_item(context_item_id)`. Returns full markdown + metadata + link.
+
+**Steps (RAG path).**
 1. `marketcore:get_relevant_context` with a descriptive `prompt`. Optionally scope with `project_id` or `collection_ids`. This is the *only* legitimate use of this tool besides the narrow Workflow 1 sourcing-check.
 2. Returns RAG chunks (a few hundred words each, not full items) plus parent `context_item_ids`.
 3. If results are sparse: paginate with `context_rag_ids` (excludes already-returned chunks), or offer to add new context.
-4. Summarize for the user — don't dump raw chunks unless asked.
+4. If the user wants the *full* content of one of the surfaced items, follow up with `marketcore:get_context_item(context_item_id)` — `get_relevant_context` only returns chunks, not the whole item.
+5. Summarize for the user — don't dump raw chunks unless asked.
 
-**Output to user.** A summary, not a JSON dump. Offer next steps: drill into a specific item, add new context, generate something based on what was found.
+**Steps (browse path).**
+1. `marketcore:list_context_items` (default returns everything the user can see; pass `reference_library_only=true` for just orphan items in the top-level Reference Library). Items in private collections / private projects the user is not in are filtered out automatically.
+2. Optionally `marketcore:list_context_collections` if the user is asking about collection-level organization, or `marketcore:get_project(project_id).context_items` for one project's items.
+3. If the user wants to read the actual content of an item, `marketcore:get_context_item(context_item_id)`.
+
+**Output to user.** A summary, not a JSON dump. Offer next steps: drill into a specific item (`get_context_item`), add new context, generate something based on what was found.
 
 ---
 
@@ -201,8 +212,10 @@ The five workflows you'll handle 80% of the time. Long-tail recipes (workflow-ru
 | To attach an existing Content item to a project (no brief intent) | `marketcore:update_project(project_brief_id=…)` (which auto-attaches), OR have the user attach in-app | Don't `create_content(project_id=…)` to "duplicate" it into the project — orphaned copy. |
 | To add reference material reusable across all projects | `marketcore:add_context` (no `project_id`) | A Context Collection is just a folder; you still need `add_context` to put items in it. |
 | To add reference material specific to one project | `marketcore:add_context(project_id=…)` | `update_project(project_brief_id=…)` would make it the brief — only one of those per project. |
-| To edit the name, content, or location of an existing context item | `marketcore:update_context` | `add_context` would create a duplicate. Note: `collection_id` and `project_id` are full-replace on every call — pass `null` to clear. |
+| To edit the name, content, or location of an existing context item | `marketcore:update_context` | `add_context` would create a duplicate. Note: `collection_id` and `project_id` are full-replace on every call — pass `null` to clear. Use `marketcore:list_context_items` to find the ID, or `marketcore:get_context_item` to confirm the current `collection_id` / `project_id` values before the full-replace update. |
 | To know what content already exists about a topic | `marketcore:get_relevant_context` for context, OR `marketcore:list_content` for a content list | `create_content` would generate something new — wrong tool for "what already exists." |
+| To browse what's in the user's context library (full inventory, not RAG) | `marketcore:list_context_items` | `get_relevant_context` returns relevance-scored chunks, not item names. Use `list_context_items` for the catalog view. Pass `reference_library_only=true` to scope to just the top-level Reference Library. |
+| To read the full markdown of a specific context item | `marketcore:get_context_item(context_item_id)` | `list_context_items` only returns `content_intro` (a truncation). `get_relevant_context` returns RAG chunks. Use this for the actual content. |
 
 ---
 
