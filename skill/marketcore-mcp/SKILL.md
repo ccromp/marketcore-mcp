@@ -4,7 +4,7 @@ description: Use this skill whenever the user is working with MarketCore — cre
 license: Proprietary
 metadata:
   mcp-server: marketcore
-  version: 0.2.3
+  version: 0.2.4
 ---
 
 # MarketCore AI Workflows
@@ -152,7 +152,7 @@ The five workflows you'll handle 80% of the time. Long-tail recipes (workflow-ru
    - Project brief → strategic anchor for a project (use Workflow 2, not this one).
    - Document-specific (one-off context for a single generation) → don't store; pass `collection_ids` or `dimension_option_ids` on `create_content` instead.
 2. If top-level + the user wants it organized: `marketcore:list_context_collections`. Use existing collection if a fit; otherwise `marketcore:create_context_collection`.
-3. `marketcore:add_context` with `name`, `content`, optional `collection_id` (top-level) or `project_id` (project-scoped).
+3. `marketcore:add_context` with `name`, `content`, optional `collection_id` (top-level) or `project_id` (project-scoped). Pass `content` as **markdown** — if the source is HTML or another format, convert it to markdown first using whatever conversion tool is available in your environment.
 
 **Output to user.** "Added: [link]. Want to use this in a content generation now?"
 
